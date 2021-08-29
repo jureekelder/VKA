@@ -1,10 +1,78 @@
+#Jur Eekelder; 23-08-2021
+#jur.eekelder@demarke.eu
+#Script voor het maken van KLW databases op basis van KLW .dmpx files ÉN ledenlijsten VKA / VKO 
+
+#INPUTS
+#type --> string die aangeeft of het VKA of VKO is
+#jaartal_start --> integer die beginjaar van dataset aangeeft
+#jaartal_eind ---> integer die eindjaar van dataset aangeeft
+#path_ledendata --> string met path naar VKA of VKO ledendata
+#path_dunpfiles --> string met pah naar mappen met .DMPX files vanuit KLW. .DMPX files per jaar in een aparte submap.
+#kolommen_ledenlijst --> OPTIONEEL: welke kolommen uit de ledenlijst data hebben we nodig?
+#In het geval dat het om 1 jaar gaat kunnen jaartal_start en jaartal_eind als hetzelfde ingevuld worden
+#
+
+#BENODIGDE FUNCTIES:
+#getDataInFolder
+
+createDataBaseVKX <- function(type,
+           jaartal_start,
+           jaartal_eind,
+           path_ledendata,
+           path_dumpfiles,
+           kolommen_ledenlijst = c(
+             "Lidmaatschapsnummer",
+             "Studiegroep",
+             "Tussenvoegsel",
+             "Achternaam",
+             "Straatnaam",
+             "Huisnummer",
+             "Huisnummertoevoeging",
+             "Postcode",
+             "Plaats"
+           )){
+
+  
+library(devtools)
+scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R")
+main_url = "https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/"
+
+
+for(script in scripts_to_source){
+  source_url(script)
+}
+  
+  
+#Check inputs
+if(!is.character(type)){
+  stop("type (VKA/VKO/...) is niet gespecificeerd als character string")
+}
+
+if(!is.integer(jaartal_start)){
+  stop("jaartal_start is geen integer")
+}
+  
+if(!is.integer(jaartal_eind)){
+    stop("jaartal_eind is geen integer")
+}
+  
+if(jaartal_start > jaartal_eind){
+  stop("jaartal_start mag niet groter zijn dan jaartal_eind")
+}
+  
+jaartallen = seq(jaartal_start, jaartal_eind, 1)
+
+#Algemene functies
 outputToLog <- function(name, quantity) {
   cat(paste(name, ": \n"))
   cat(paste(toString(quantity), "\n"))
   cat("\n")
-  
 }
 
+outputToLog("Functie gestart: bouwen database voor", type)
+outputToLog("Voor jaartallen", jaartallen)
+
+#Functie om getallen uit string te krijgen.
 getNumbersFromString <- function(x) {
   elements = unlist(strsplit(x, ""))
   numberString = NULL
@@ -29,6 +97,7 @@ getNumbersFromString <- function(x) {
   
 }
 
+#Functie om letters uit string te krijgen.
 getCharactersFromString <- function(x) {
   elements = unlist(strsplit(x, ""))
   characterString = NULL
@@ -52,191 +121,62 @@ getCharactersFromString <- function(x) {
   }
 }
 
-getDataInFolder <-
-  function(x,
-           patternFile = NULL,
-           sheetList = 1,
-           allSheets = FALSE,
-           fieldSeperator = ";") {
-    setwd(x)
-    outputToLog("Map voor inputdata is nu:", x)
-    outputToLog("Zoeken naar bestanden die hetvolgende bevatten:", patternFile)
-    
-    if (is.null(patternFile)) {
-      fileList = list.files()
-    } else {
-      fileList = list.files(pattern = patternFile)
-    }
-    
-    outputToLog("Aantal gevonden bestanden:", length(fileList))
-    print(fileList)
-    
-    if (length(fileList) > 0) {
-      for (j in 1:length(fileList)) {
-        excelsheet = FALSE
-        fileName = fileList[j]
-        #Als een bestand nog geopend is dan vind R ook een kopie ervan in de map, deze geeft problemen dus overslaan!
-        if (grepl("~", fileName) || grepl("output", fileName)) {
-          next
-        }
-        
-        if (grepl(".xl", fileName)) {
-          excelsheet = TRUE
-        }
-        
-        if (excelsheet) {
-          if (allSheets) {
-            sheetList = excel_sheets(fileName)
-            outputToLog("Gevonden sheets", sheetList)
-          }
-          
-          sheetnameAsColum = FALSE
-          if (length(sheetList) > 1) {
-            sheetnameAsColum = TRUE
-          }
-          
-        }
-        
-        
-        #Voor het huidige bestand; lees de relevante tabbladen
-        for (i in 1:length(sheetList)) {
-          sheet = sheetList[i]
-          
-          if (excelsheet) {
-            tempData = read_excel(fileName, sheet = sheet)
-            
-            
-            if (sheetnameAsColum) {
-              tempData$sheetname = sheet
-            }
-            
-          } else {
-            #tempData = read.csv(file = fileName, header = TRUE, sep = fieldSeperator, dec = ",", colClasses = c("aanleg_sm_hoev" = "integer"))
-            tempData = read.delim(
-              file = fileName,
-              header = TRUE,
-              sep = fieldSeperator,
-              dec = ","
-            )
-            #tempData = utils::read.table(file= fileName, sep=fieldSeperator, dec=",", colClasses="character")
-          }
-          
-          
-          if (i == 1) {
-            dataFile = tempData
-          } else {
-            dataFile = merge(dataFile, tempData, all = TRUE)
-          }
-          
-        }
-        
-        if (j == 1) {
-          dataAllFiles = dataFile
-        } else {
-          if (length(colnames(dataFile)) == length(colnames(dataAllFiles))) {
-            if (all(colnames(dataFile) == colnames(dataAllFiles))) {
-              dataAllFiles = rbind(dataAllFiles, dataFile)
-            } else {
-              dataAllFiles = cbind(dataAllFiles, dataFile)
-            }
-          } else {
-            dataAllFiles = cbind(dataAllFiles, dataFile)
-          }
-        }
-        
-      }
-    } else {
-      dataAllFiles = NA
-    }
-    
-    return(dataAllFiles)
-  }
 
-
-
-dataset = "VKA" #"VKA" of "VKO"
-#jaartallen = c(2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020)
-jaartallen = c(2018,2019,2020)
-
-#Zet working directory naar de locatie van dit script. Ervan uitgaande dat RStudio gebruikt wordt:
-main_directory = dirname(rstudioapi::getActiveDocumentContext()$path)
-main_directory = paste(main_directory, "/", dataset, sep = "")
-setwd(main_directory)
-file_list_main_directory = list.files()
-
-####Voorbereiden VKX dataset####
-VKX_ledenlijst_locatie = "Ledenlijst"
-
-if (any(grepl(VKX_ledenlijst_locatie, file_list_main_directory))) {
-  path = paste(main_directory, "/", VKX_ledenlijst_locatie, sep = "")
-  data_VKX_input = getDataInFolder(path)
-  
+#Inlezen van Ledenlijst
+if(file.exists(path_ledendata)){
+data_VKX_input = getDataInFolder(path)
 } else {
-  stop("VKX ledenlijst niet kunnen vinden!")
+  stop("Path naar Ledendata bestaat niet!")
 }
 
-#Welke kolommen van VKX ledenbestand willen we behouden?
-kolommen_ledenlijst = c(
-  "Lidmaatschapsnummer",
-  "Studiegroep",
-  "Tussenvoegsel",
-  "Achternaam",
-  "Straatnaam",
-  "Huisnummer",
-  "Huisnummertoevoeging",
-  "Postcode",
-  "Plaats",
-  "BES"
-)
+
 if (all(kolommen_ledenlijst %in% colnames(data_VKX_input))) {
   data_VKX_input = data_VKX_input[, kolommen_ledenlijst]
 } else {
-  stop("Ledenbestand heeft niet de juiste headers")
+  stop("Ledenbestand heeft niet de headers zoals gespecificeerd in functie-call")
 }
-
-
-outputToLog("Aantal observaties in Volledige VKX data", nrow(data_VKX_input))
+outputToLog("Aantal observaties in volledige VKX data", nrow(data_VKX_input))
 
 #Verzeker dat de Lidmaatschapnummers en studiegroepnummers gezien worden als numeric voor het joinen later.
 data_VKX_input$Lidmaatschapsnummer = as.integer(data_VKX_input$Lidmaatschapsnummer)
 data_VKX_input$Studiegroep = as.integer(data_VKX_input$Studiegroep)
 
-outputToLog("Negeren van loonwerkers en lege velden...", "")
 
 data_VKX_input = data_VKX_input %>%
-  dplyr::filter(Lidmaatschapsnummer > 0) %>%
-  dplyr::filter(!Studiegroep %in% c(30)) #Groep 30 zijn de loonwerkers
+  dplyr::filter(Lidmaatschapsnummer > 0)
+
+if(type == "VKA"){
+  data_VKX_input = data_VKX_input %>% dplyr::filter(!Studiegroep %in% c(30)) #Groep 30 zijn de loonwerkers
+}
 
 outputToLog("Aantal leden in gefilterde VKX ledenbestand",
             nrow(data_VKX_input))
 
 #Logica om van de postcode en huisnummer combinatie een primary key te maken, bijvoorbeeld Kapelweg 36, 7134 RJ wordt --> 7134RJ36
-if (TRUE) {
-  data_VKX_input$postcode_temp = gsub(" ", "", data_VKX_input$Postcode, fixed = T) #verwijderen van spaties
-  data_VKX_input$postcode_temp = toupper(data_VKX_input$postcode_temp) #naar hoofdletters!
-  data_VKX_input$huisnummer = sapply(data_VKX_input$Huisnummer, getNumbersFromString)
-  data_VKX_input$PK_VKX = paste(data_VKX_input$postcode_temp,
-                                data_VKX_input$huisnummer,
-                                sep = "")
-  data_VKX_input$PK = data_VKX_input$PK_VKX
-  data_VKX_input$postcodeVKX = data_VKX_input$postcode_temp
-}
+data_VKX_input$postcode_temp = gsub(" ", "", data_VKX_input$Postcode, fixed = T) #verwijderen van spaties
+data_VKX_input$postcode_temp = toupper(data_VKX_input$postcode_temp) #naar hoofdletters!
+data_VKX_input$huisnummer = sapply(data_VKX_input$Huisnummer, getNumbersFromString)
+data_VKX_input$PK_VKX = paste(data_VKX_input$postcode_temp,
+                              data_VKX_input$huisnummer,
+                              sep = "")
+data_VKX_input$PK = data_VKX_input$PK_VKX
+data_VKX_input$postcodeVKX = data_VKX_input$postcode_temp
+
 
 #Logica om van de naam en de plaats een secondary key te maken
-if (TRUE) {
-  data_VKX_input$naam_plaats = paste(
-    ifelse(
-      is.na(data_VKX_input$Tussenvoegsel),
-      "",
-      data_VKX_input$Tussenvoegsel
-    ),
-    data_VKX_input$Achternaam,
-    data_VKX_input$Plaats,
-    sep = ""
-  )
-  data_VKX_input$naam_plaats = tolower(gsub(" ", "", data_VKX_input$naam_plaats, fixed = T))
-  data_VKX_input$SK_VKX = data_VKX_input$naam_plaats
-}
+data_VKX_input$naam_plaats = paste(
+  ifelse(
+    is.na(data_VKX_input$Tussenvoegsel),
+    "",
+    data_VKX_input$Tussenvoegsel
+  ),
+  data_VKX_input$Achternaam,
+  data_VKX_input$Plaats,
+  sep = ""
+)
+data_VKX_input$naam_plaats = tolower(gsub(" ", "", data_VKX_input$naam_plaats, fixed = T))
+data_VKX_input$SK_VKX = data_VKX_input$naam_plaats
+
 
 data_VKX_Meta = data_VKX_input %>%
   dplyr::select(Achternaam,
@@ -259,27 +199,93 @@ if (any(data_VKX_Lidmaatschapnummers$n > 1)) {
 }
 
 
-
 ####Voorbereiden KLW data####
+#KLW Data in zit in allemaal submappen
+
+if(file.exists(path_dumpfiles)){
+  
+  folder_list = list.files(path_dumpfiles)
+  
+  data_KLW_all = NULL
+  for(folder in folder_list){
+    
+    current_path = paste(path_dumpfiles, "/",folder , sep = "")
+    
+    #In de functie getDataInFolder worden de 6 .DMPX al horizontaal samengevoegd. 
+    data_KLW_current = getDataInFolder(current_path, patternFile = ".dmp", fieldSeperator = "@")
+    
+    #De KLW data per map moet vervolgens verticaal onder elkaar gezet worden:
+    data_KLW_all = rbind(data_KLW_all, data_KLW_current)
+    
+  }
+  
+} else {
+  stop("Path naar Ledendata bestaat niet!")
+}
+
+data_KLW_input = data_KLW_all
+
+
+#CHECKS OP KLW DATA:
+
+#Zorg dat numerieke kolommen als numeriek worden opgeslagen!
+is_all_numeric <- function(x) {
+  !any(is.na(suppressWarnings(as.numeric(na.omit(
+    x
+  ))))) & is.character(x)
+}
+
+data_KLW_input = data_KLW_input %>% mutate_if(is_all_numeric, as.numeric)
+
+
+if (length(unique(data_KLW_input$versie)) > 1) {
+  stop("Verschillende KLW-versies in dataset! Haal alles door de dezelfde rekenmotor!")
+}
+
+outputToLog("Aantal observaties in volledige KLW data",
+            nrow(data_KLW_input))
+outputToLog("Aantal versienummers KLW-versie gevonden", length(unique(data_KLW_input$versie)))
+outputToLog("Gevonden versienummers KLW-versie", (unique(data_KLW_input$versie)))
+outputToLog("Jaartallen in KLW data", unique(data_KLW_input$jaartal))
+
+#Logica om van de postcode en huisnummer combinatie een primary key te maken.
+if (TRUE) {
+  data_KLW_input$postcode = gsub(" ", "", data_KLW_input$postcode, fixed = T) #verwijder spaties in string
+  data_KLW_input$postcode = toupper(data_KLW_input$postcode) #naar HOOFDLETTERS
+  data_KLW_input$huisnummer = sapply(data_KLW_input$straat, getNumbersFromString)
+  data_KLW_input$PK = paste(data_KLW_input$postcode, data_KLW_input$huisnummer, sep = "")
+  data_KLW_input$PK_KLW = data_KLW_input$PK
+}
+
+#Logica om van de naaminvoer een secondary key te maken.
+if (TRUE) {
+  data_KLW_input$naaminv_geenjaar = sapply(data_KLW_input$naaminv, getCharactersFromString)
+  data_KLW_input$naaminv_geenjaar = tolower(gsub(" ", "", data_KLW_input$naaminv_geenjaar, fixed = T))
+  data_KLW_input$SK_KLW = data_KLW_input$naaminv_geenjaar
+}
+
+#Selecteer enkel de jaartallen die we willen hebben.
+data_KLW_input = data_KLW_input %>% filter(jaartal %in% jaartallen)
+
+#Zitten er dubbele KringloopWijzers in de dataset?
+data_KLW_input_duplicates = duplicated(data_KLW_input %>% select(jaartal, PK_KLW))
+
+if (any(data_KLW_input_duplicates)) {
+  outputToLog("Dubbele KLW data in bestand: ", data_KLW_input[data_KLW_input_duplicates, c("naaminv", "jaartal")])
+  
+  data_KLW_input = distinct(data_KLW_input, jaartal, PK_KLW, .keep_all = T)
+}
+
+
+#Geef iedere KLW een uniek nummer
+data_KLW_input$ID_KLW = seq(nrow(data_KLW_input))
+
 
 
 
 #Functie om .DMPX bestanden in te lezen en voor te bereiden
 voorbereidenKLWData <- function(folderLocation) {
-  folderList = list.files(folderLocation)
-  
-  data_KLW_input = NULL
-  
-  for (folder in folderList) {
-    path = paste(main_directory, "/", DUMP_files_locatie, "/", folder, sep =
-                   "")
-    data_KLW_input_folder = getDataInFolder(path, patternFile = ".dmp", fieldSeperator = "@")
-    data_KLW_input_folder = data_KLW_input_folder[,!duplicated(colnames(data_KLW_input_folder))]
-    
-    data_KLW_input = rbind(data_KLW_input, data_KLW_input_folder)
-    
-  }
-  
+
   is_all_numeric <- function(x) {
     !any(is.na(suppressWarnings(as.numeric(na.omit(
       x
@@ -697,3 +703,4 @@ write.xlsx(
   data_KLW_VKX_Compleet,
   paste("dataset_VKA_", min_jaartal, "_", max_jaartal, ".xlsx", sep = "")
 )
+}
