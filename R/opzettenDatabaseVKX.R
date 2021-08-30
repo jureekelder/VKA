@@ -14,6 +14,9 @@
 
 #BENODIGDE FUNCTIES:
 #getDataInFolder
+#toevoegenKengetallenKLW
+#vergelijkenKLWBestanden
+#controleDatasetScript
 
 createDataBaseVKX <- function(type,
            jaartal_start,
@@ -29,17 +32,22 @@ createDataBaseVKX <- function(type,
              "Huisnummer",
              "Huisnummertoevoeging",
              "Postcode",
-             "Plaats"
-           )){
+             "Plaats"),
+           path_klw_bestanden = NULL){
 
-  
+
+#Het laden van benodigde functies die ook op GIT staan.
 library(devtools)
-scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R")
+scripts_to_source = c("getDataInFolder",
+                      "toevoegenKengetallenKLW",
+                      "vergelijkenKLWBestanden",
+                      "controleDatasetScript")
 main_url = "https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/"
 
 
 for(script in scripts_to_source){
-  source_url(script)
+  url = paste(main_url, script, ".R", sep = "")
+  source_url(url)
 }
   
   
@@ -280,142 +288,58 @@ if (any(data_KLW_input_duplicates)) {
 #Geef iedere KLW een uniek nummer
 data_KLW_input$ID_KLW = seq(nrow(data_KLW_input))
 
+#Welke "class" hebben de kolommen
+data_KLW_input_columns_class = t(sapply(data_KLW_input, class))
 
+data_KLW_input$pceigen_n = as.numeric(sapply(data_KLW_input$pceigen_n, getNumbersFromString))
+data_KLW_input$kring1_benut_tot = as.numeric(sapply(data_KLW_input$kring1_benut_tot, getNumbersFromString))
+data_KLW_input$kring2_benut_tot = as.numeric(sapply(data_KLW_input$kring2_benut_tot, getNumbersFromString))
+data_KLW_input$kring1_benut_bod = as.numeric(sapply(data_KLW_input$kring1_benut_bod, getNumbersFromString))
+data_KLW_input$kring2_benut_bod = as.numeric(sapply(data_KLW_input$kring2_benut_bod, getNumbersFromString))
+data_KLW_input$kring1_benut_mst = as.numeric(sapply(data_KLW_input$kring1_benut_mst, getNumbersFromString))
 
+#Toevoegen nieuwe kengetallen
+data_KLW_input = toevoegenKengetallenKLW(data_KLW_input)
 
-#Functie om .DMPX bestanden in te lezen en voor te bereiden
-voorbereidenKLWData <- function(folderLocation) {
-
-  is_all_numeric <- function(x) {
-    !any(is.na(suppressWarnings(as.numeric(na.omit(
-      x
-    ))))) & is.character(x)
-  }
-  
-  data_KLW_input = data_KLW_input %>% mutate_if(is_all_numeric, as.numeric)
-  
-  #columns_numeric = ("jaartal")
-  #data_KLW_input = data_KLW_input %>% mutate_at(columns_numeric, as.numeric)
-  
-  
-  if (length(unique(data_KLW_input$versie)) > 1) {
-    stop("Verschillende KLW-versies in dataset! Haal alles door de dezelfde rekenmotor!")
-  }
-  
-  outputToLog("Aantal observaties in volledige KLW data",
-              nrow(data_KLW_input))
-  outputToLog("Aantal versienummers KLW-versie gevonden", length(unique(data_KLW_input$versie)))
-  outputToLog("Gevonden versienummers KLW-versie", (unique(data_KLW_input$versie)))
-  
-  #Logica om van de postcode en huisnummer combinatie een primary key te maken.
-  if (TRUE) {
-    data_KLW_input$postcode = gsub(" ", "", data_KLW_input$postcode, fixed = T) #verwijder spaties in string
-    data_KLW_input$postcode = toupper(data_KLW_input$postcode) #naar HOOFDLETTERS
-    data_KLW_input$huisnummer = sapply(data_KLW_input$straat, getNumbersFromString)
-    data_KLW_input$PK = paste(data_KLW_input$postcode, data_KLW_input$huisnummer, sep = "")
-    data_KLW_input$PK_KLW = data_KLW_input$PK
-  }
-  
-  #Logica om van de naaminvoer een secondary key te maken.
-  if (TRUE) {
-    data_KLW_input$naaminv_geenjaar = sapply(data_KLW_input$naaminv, getCharactersFromString)
-    data_KLW_input$naaminv_geenjaar = tolower(gsub(" ", "", data_KLW_input$naaminv_geenjaar, fixed = T))
-    data_KLW_input$SK_KLW = data_KLW_input$naaminv_geenjaar
-  }
-  
-  data_KLW_input = data_KLW_input %>% filter(jaartal %in% jaartallen)
-  
-  data_KLW_input_duplicates = duplicated(data_KLW_input %>% select(jaartal, PK_KLW))
-  
-  
-  if (any(data_KLW_input_duplicates)) {
-    outputToLog("Dubbele KLW data in bestand: ", data_KLW_input[data_KLW_input_duplicates, c("naaminv", "jaartal")])
-    
-    data_KLW_input = distinct(data_KLW_input, jaartal, PK_KLW, .keep_all = T)
-  }
-  
-  
-  #Verzeker dat het jaartal gezien wordt als numeric voor het joinen later
-  data_KLW_input$jaartal = as.integer(data_KLW_input$jaartal)
-  outputToLog("Jaartallen in KLW data", unique(data_KLW_input$jaartal))
-  
-  #Geef iedere KLW een uniek nummer
-  data_KLW_input$ID_KLW = seq(nrow(data_KLW_input))
-  
-  #Toevoegen nieuwe kengetallen
-  
-  Kengetallen_Script_locatie = "KengetallenScript"
-  if (any(grepl(Kengetallen_Script_locatie, file_list_main_directory))) {
-    path = paste(main_directory, "/", Kengetallen_Script_locatie, sep = "")
-    files = list.files(path, pattern = ".R")
-    source(paste(path, "/", files[1], sep = ""))
-    
-  } else {
-    stop("ToevoegenKengetallenScript niet kunnen vinden!")
-  }
-  
-  
-  print(str(data_KLW_input))
-  
-  data_KLW_input_columns = t(sapply(data_KLW_input, class))
-  
-  
-  data_KLW_input$pceigen_n = as.numeric(sapply(data_KLW_input$pceigen_n, getNumbersFromString))
-  data_KLW_input$kring1_benut_tot = as.numeric(sapply(data_KLW_input$kring1_benut_tot, getNumbersFromString))
-  data_KLW_input$kring2_benut_tot = as.numeric(sapply(data_KLW_input$kring2_benut_tot, getNumbersFromString))
-  data_KLW_input$kring1_benut_bod = as.numeric(sapply(data_KLW_input$kring1_benut_bod, getNumbersFromString))
-  data_KLW_input$kring2_benut_bod = as.numeric(sapply(data_KLW_input$kring2_benut_bod, getNumbersFromString))
-  data_KLW_input$kring1_benut_mst = as.numeric(sapply(data_KLW_input$kring1_benut_mst, getNumbersFromString))
-  
-  data_KLW_input = toevoegenVariabelenKLW(data_KLW_input)
-  
-  
-  data_KLW_input = data_KLW_input %>% select(ID_KLW,
-                                             PK_KLW,
-                                             SK_KLW,
-                                             jaartal,
-                                             naaminv,
-                                             postcode,
-                                             huisnummer,
-                                             everything())
-  
-  return(data_KLW_input)
-}
-
-
-
-#Mapnaam voor .DMPX bestanden
-DUMP_files_locatie = "KLW_DUMP"
-if (any(grepl(DUMP_files_locatie, file_list_main_directory))) {
-  path = paste(main_directory, "/", DUMP_files_locatie, sep = "")
-  
-  data_KLW_input = voorbereidenKLWData(path)
-  
-  
-  
-} else {
-  stop("DUMP-files niet kunnen vinden!")
-}
-
-str(data_KLW_input)
-
+#Kolommen sorteren
+data_KLW_input = data_KLW_input %>% select(ID_KLW,
+                                           PK_KLW,
+                                           SK_KLW,
+                                           jaartal,
+                                           naaminv,
+                                           postcode,
+                                           huisnummer,
+                                           everything())
 
 
 #Vergelijken van database van ALLE KLW versus wat er in de DUMP files staat.
-data_gerjan = vergelijkenKLWBestanden("C:/Users/JurEekelder/OneDrive - Cooperatie De Marke U.A/DatabaseVKA/VKA")
-
-if (TRUE) {
-  data_gerjan$naaminv_geenjaar = sapply(data_gerjan$naam_plaats, getCharactersFromString)
-  data_gerjan$naaminv_geenjaar = tolower(gsub(" ", "", data_gerjan$naaminv_geenjaar, fixed = T))
+if (!is.null(path_klw_bestanden)) {
+  if (file.exists(path_klw_bestanden)) {
+    outputToLog("Zoeken naar bronbestanden KLW voor controle op basis van [naaminv]",
+                NULL)
+    
+    data_KLW_bron = vergelijkenKLWBestanden(path_klw_bestanden)
+    
+    
+    data_KLW_bron$naaminv_geenjaar = sapply(data_KLW_bron$naam_plaats, getCharactersFromString)
+    data_KLW_bron$naaminv_geenjaar = tolower(gsub(" ", "", data_KLW_bron$naaminv_geenjaar, fixed = T))
+  }
+  
+  data_KLW_naam_plaats = data_KLW_input %>% select(naaminv_geenjaar, jaartal)
+  data_KLW_bron = data_KLW_bron %>% select(naaminv_geenjaar, jaartal)
+  summary(comparedf(
+    data_KLW_bron,
+    data_KLW_naam_plaats,
+    by = c("naaminv_geenjaar", "jaartal")
+  ))
+  
+} else {
+  stop("Path voor KLW bronbestanden bestaat niet")
 }
 
-data_KLW_naam_plaats = data_KLW_input %>% select(naaminv_geenjaar, jaartal)
-data_gerjan = data_gerjan %>% select(naaminv_geenjaar, jaartal)
-summary(comparedf(
-  data_gerjan,
-  data_KLW_naam_plaats,
-  by = c("naaminv_geenjaar", "jaartal")
-))
+}
+
+
 
 #Controleren KLW dataset
 
