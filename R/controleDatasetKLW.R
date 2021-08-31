@@ -1,9 +1,13 @@
 #Jur Eekelder; 23-08-2021
 #jur.eekelder@demarke.eu
 #Script voor het controlerenr van kengetallen. Zijn sommige waardes reeël?
+#BRON: https://edepot.wur.nl/544824
 
 #INPUTS
 #dataset --> data frame met KLW kengetallen
+
+#OUTPUTS
+#een lijst met KLW ID's die afgekeurd zijn.
 
 
 controleDatasetKLW <- function(dataset){

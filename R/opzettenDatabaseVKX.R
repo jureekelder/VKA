@@ -35,19 +35,19 @@ createDataBaseVKX <- function(type,
              "Plaats"),
            path_klw_bestanden = NULL){
 
-
+#Wat is de working directory:
+outputToLog("Working Directory is", getwd())
+  
 #Het laden van benodigde functies die ook op GIT staan.
 library(devtools)
-scripts_to_source = c("getDataInFolder",
-                      "toevoegenKengetallenKLW",
-                      "vergelijkenKLWBestanden",
-                      "controleDatasetScript")
-main_url = "https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/"
+scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R",
+                      "https://raw.githubusercontent.com/jureekelder/VKA/main/R/toevoegenKengetallenKLW.R",
+                      "https://raw.githubusercontent.com/jureekelder/VKA/main/R/vergelijkenKLWBestanden.R",
+                      "https://raw.githubusercontent.com/jureekelder/VKA/main/R/controleDatasetKLW.R")
 
 
 for(script in scripts_to_source){
-  url = paste(main_url, script, ".R", sep = "")
-  source_url(url)
+  source_url(script)
 }
   
   
@@ -341,21 +341,6 @@ if (!is.null(path_klw_bestanden)) {
 
 
 
-#Controleren KLW dataset
-
-controleDataset_Script_locatie = "controleDatasetScript"
-if (any(grepl(controleDataset_Script_locatie, file_list_main_directory))) {
-  path = paste(main_directory, "/", controleDataset_Script_locatie, sep =
-                 "")
-  files = list.files(path, pattern = ".R")
-  source(paste(path, "/", files[1], sep = ""))
-  
-} else {
-  stop("controleDatasetScript niet kunnen vinden!")
-}
-
-foute_KLW_inputs = controleDataset(data_KLW_input)
-
 data_KLW_Meta = data_KLW_input %>%
   dplyr::select(ID_KLW,
                 naaminv,
@@ -373,215 +358,170 @@ data_KLW_SK_jaar = data_KLW_input %>% select(ID_KLW, SK_KLW, jaartal)
 
 data_KLW_SK_jaar_count = data_KLW_SK_jaar %>% group_by(SK_KLW, jaartal) %>% dplyr::summarise(count = dplyr::n())
 
+#MATCHEN VAN VKX DATA AAN KLW DATA OP BASIS VAN PK, SK, optioneel: KVK
+#DIT GEBEURT PER JAARTAL:
 
-####KOPPELEN VAN VKX LIDMAATSCHAPSNUMMER AAN KLW####
-verwijderNAKolom <- function(x) {
-  y = x[, colSums(is.na(x)) != nrow(x)]
-  return(y)
-}
+#Initialiseren van totaal over alle jaren
+data_KLW_VKX_Meta_Matched_Totaal = NULL
 
-setwd(main_directory)
+#Initialiseren van VKX bedrijven die niet gematched zijn
+data_VKX_Mismatch = NULL
 
-if (TRUE) {
-  data_KLW_VKX_Meta_Matched_Totaal = NULL
+#Initialiseren van KLW data die niet gematched zijn
+data_KLW_Mismatch = NULL
+
+for (j in jaartallen) {
+  outputToLog("VKX leden koppelen aan KLW voor jaartal", j)
   
-  for (j in jaartallen) {
-    outputToLog("VKA leden koppelen aan KLW voor jaartal", j)
-    
-    #VKX ledenbestand aan KLW data koppelen op basis van de PK
-    data_KLW_Meta_Jaar = data_KLW_Meta %>% filter(jaartal == j)
-    data_KLW_VKX_Meta = full_join(data_VKX_Meta, data_KLW_Meta_Jaar, by = "PK")
-    
-    data_KLW_VKX_Meta_Join = data_KLW_VKX_Meta %>% filter(!is.na(SK_VKX) &
-                                                            !is.na(SK_KLW))
-    data_KLW_VKX_Meta_Not_Join_VKX = data_KLW_VKX_Meta %>% filter(is.na(SK_KLW))
-    data_KLW_VKX_Meta_Not_Join_KLW = data_KLW_VKX_Meta %>% filter(is.na(SK_VKX))
-    
-    numberOfRows = (
-      nrow(data_KLW_VKX_Meta_Join) + nrow(data_KLW_VKX_Meta_Not_Join_VKX) + nrow(data_KLW_VKX_Meta_Not_Join_KLW)
-    )
-    if (numberOfRows != nrow(data_KLW_VKX_Meta)) {
-      print("ERROR")
-    }
-    
-    
-    if (nrow(data_KLW_VKX_Meta_Not_Join_VKX) > 0) {
-      outputToLog(
-        "Aantal VKX bedrijven dat 1e keer niet gematched is",
-        nrow(data_KLW_VKX_Meta_Not_Join_VKX)
-      )
-      
-      data_KLW_VKX_Meta_Not_Join_VKX$SK = data_KLW_VKX_Meta_Not_Join_VKX$SK_VKX
-      data_KLW_VKX_Meta_Not_Join_VKX = verwijderNAKolom(data_KLW_VKX_Meta_Not_Join_VKX)
-      
-      if (length(unique(data_KLW_VKX_Meta_Not_Join_VKX$SK)) != nrow(data_KLW_VKX_Meta_Not_Join_VKX)) {
-        outputToLog("SK van VKA lijst is niet uniek, matchen zal fout kunnen gaan!",
-                    "")
-      }
-      
-    }
-    
-    if (nrow(data_KLW_VKX_Meta_Not_Join_KLW) > 0) {
-      outputToLog(
-        "Aantal KLW records dat 1e keer niet gematched is",
-        nrow(data_KLW_VKX_Meta_Not_Join_KLW)
-      )
-      
-      data_KLW_VKX_Meta_Not_Join_KLW$SK = data_KLW_VKX_Meta_Not_Join_KLW$SK_KLW
-      data_KLW_VKX_Meta_Not_Join_KLW = verwijderNAKolom(data_KLW_VKX_Meta_Not_Join_KLW)
-      
-      if (length(unique(data_KLW_VKX_Meta_Not_Join_KLW$SK)) != nrow(data_KLW_VKX_Meta_Not_Join_KLW)) {
-        outputToLog("SK van KLW lijst is niet uniek, matchen zal fout kunnen gaan!",
-                    "")
-      }
-      
-    }
-    
-    #Joinen van data die niet gematched is op basis van SK
-    
-    if (nrow(data_KLW_VKX_Meta_Not_Join_VKX) > 0 &
-        nrow(data_KLW_VKX_Meta_Not_Join_KLW) > 0) {
-      data_KLW_VKX_Meta_2 = full_join(data_KLW_VKX_Meta_Not_Join_VKX,
-                                      data_KLW_VKX_Meta_Not_Join_KLW,
-                                      by = "SK")
-      
-      data_KLW_VKX_Meta_Join_2 = data_KLW_VKX_Meta_2 %>% filter(!is.na(SK_VKX) &
-                                                                  !is.na(SK_KLW))
-      data_KLW_VKX_Meta_Not_Join_VKX_2 = data_KLW_VKX_Meta_2 %>% filter(is.na(SK_KLW))
-      data_KLW_VKX_Meta_Not_Join_KLW_2 = data_KLW_VKX_Meta_2 %>% filter(is.na(SK_VKX))
-      
-      if (nrow(data_KLW_VKX_Meta_Not_Join_VKX_2) > 0) {
-        outputToLog(
-          "Aantal VKX bedrijven dat 2e keer niet gematched is",
-          nrow(data_KLW_VKX_Meta_Not_Join_VKX_2)
-        )
-        print(data_KLW_VKX_Meta_Not_Join_VKX_2)
-      }
-      
-      if (nrow(data_KLW_VKX_Meta_Not_Join_KLW_2) > 0) {
-        outputToLog(
-          "Aantal KLW records dat 2e keer niet gematched is",
-          nrow(data_KLW_VKX_Meta_Not_Join_KLW_2)
-        )
-        
-      }
-      
-      
-      
-      data_KLW_VKX_Meta_Matched = rbind(
-        data_KLW_VKX_Meta_Join %>% select(ID_KLW, Lidmaatschapsnummer, jaartal),
-        data_KLW_VKX_Meta_Join_2 %>% select(ID_KLW, Lidmaatschapsnummer, jaartal)
-      )
-    } else {
-      data_KLW_VKX_Meta_Matched = rbind(data_KLW_VKX_Meta_Join %>% select(ID_KLW, Lidmaatschapsnummer, jaartal))
-    }
-    
-    data_KLW_VKX_Meta_Matched_Totaal = rbind(data_KLW_VKX_Meta_Matched_Totaal,
-                                             data_KLW_VKX_Meta_Matched)
-    
+  #VKX ledenbestand aan KLW data koppelen op basis van de PK voor huidige jaar
+  data_KLW_Meta_Jaar = data_KLW_Meta %>% filter(jaartal == j)
+  
+  if(nrow(data_KLW_Meta_Jaar) > nrow(data_VKX_Meta)){
+    outputToLog("Er zijn meer KLW observaties dan VKX leden", NULL)
+  } else if(nrow(data_KLW_Meta_Jaar) < nrow(data_VKX_Meta)){
+    outputToLog("Er zijn minder KLW observaties dan VKX leden", NULL)
+  } else if(nrow(data_KLW_Meta_Jaar) == nrow(data_VKX_Meta)){
+    outputToLog("Aantal KLW observaties is gelijk aan aantal VKX leden", NULL)
   }
   
-  write.xlsx(
-    full_join(data_KLW_VKX_Meta_Matched_Totaal, data_VKX_Meta),
-    "matches.xlsx",
-    asTable = T
+  data_KLW_VKX_Meta = full_join(data_VKX_Meta, data_KLW_Meta_Jaar, by = "PK")
+  
+  #Door de full join zijn de regels: A) goed gematched B) VKX data is niet gematched, C) KLW dat niet gematched
+  #In geval van B) --> dan is kolom SK_KLW gelijk aan NA
+  #In geval van C) --> dan is kolom SK_VKX gelijk aan NA
+  data_KLW_VKX_Meta_Join = data_KLW_VKX_Meta %>% filter(!is.na(SK_VKX) &
+                                                          !is.na(SK_KLW))
+  
+  #Achterhalen welke KLW en welke VKX leden nog niet gematched zijn.
+  data_KLW_VKX_Meta_Not_Join_VKX = data_KLW_VKX_Meta %>% filter(is.na(SK_KLW))
+  data_KLW_VKX_Meta_Not_Join_KLW = data_KLW_VKX_Meta %>% filter(is.na(SK_VKX))
+  
+  #Test om te kijken of het aantal regels gelijk is.
+  numberOfRows = (
+    nrow(data_KLW_VKX_Meta_Join) + nrow(data_KLW_VKX_Meta_Not_Join_VKX) + nrow(data_KLW_VKX_Meta_Not_Join_KLW)
   )
-  data_KLW_VKX_Meta_Matched_Totaal = data_KLW_VKX_Meta_Matched_Totaal %>% select(!jaartal)
+  if (numberOfRows != nrow(data_KLW_VKX_Meta)) {
+    stop("Aantal rijen in KLW match niet gelijk!")
+  }
+  
+  percentage_gematched = round(nrow(data_KLW_VKX_Meta_Join) / nrow(data_VKX_Meta) * 100, 1)
+  outputToLog("Percentage VKX bedrijven dat gematched is op basis van PK", percentage_gematched)
   
   
-  #VKX Lidmaatschapsnummer koppelen aan KLW data
-  data_KLW_input_VKX = full_join(data_KLW_VKX_Meta_Matched_Totaal, data_KLW_input, by = "ID_KLW")
-  #KLW data met VKX lidmaatschapsnummer koppelen aan VKX data
-  data_KLW_VKX = full_join(data_VKX_input, data_KLW_input_VKX, by = "Lidmaatschapsnummer")
-  data_KLW_VKX = data_KLW_VKX %>% select(
-    Studiegroep,
-    ID_KLW,
-    jaartal,
-    PK_VKX,
-    SK_VKX,
-    Achternaam,
-    Straatnaam,
-    Huisnummer,
-    Postcode,
-    Plaats,
-    everything()
-  )
-  data_KLW_VKX = data_KLW_VKX %>% arrange(Studiegroep, Lidmaatschapsnummer, jaartal)
-  
-  
-  VKX_lid_nummers = data.frame(Lidmaatschapsnummer = unique(data_VKX_input$Lidmaatschapsnummer))
-  VKX_lid_jaartal = merge(data.frame(jaartal = jaartallen), VKX_lid_nummers)
-  
-  data_VKX_KLW_Jaartal_ID = data_KLW_VKX %>% dplyr::select(Lidmaatschapsnummer, jaartal, ID_KLW)
-  
-  KLW_matched = left_join(VKX_lid_jaartal, data_VKX_KLW_Jaartal_ID)
-  
-  
-  
-  #Voor welke boeren zijn er in welk jaar geen KLW gevonden???
-  if (any(is.na(KLW_matched$ID_KLW))) {
-    #Voor een deelnemer is er voor een bepaald jaar geen KLW aanwezig
-    
-    VKX_lid_geen_KLW = KLW_matched %>% filter(is.na(ID_KLW))
-    
-    data_totaal = NULL
-    
-    for (j in unique(VKX_lid_geen_KLW$jaartal)) {
-      outputToLog("Voor dit jaartal zijn er bij enkele boeren geen KLW gevonden",
-                  j)
-      
-      VKX_lid_geen_KLW_jaar = VKX_lid_geen_KLW %>% filter(jaartal == j)
-      
-      outputToLog(
-        "Voor dit jaartal zijn er bij zoveel boeren geen KLW gevonden",
-        nrow(VKX_lid_geen_KLW_jaar)
-      )
-      
-      VKX_lid_geen_KLW_jaar_VKX_Meta = left_join(VKX_lid_geen_KLW_jaar, data_VKX_Meta)
-      
-      #Welke VKX leden hebben geen KLW gekoppeld?
-      VKX_lid_jaar_niet_gematched = VKX_lid_geen_KLW_jaar_VKX_Meta %>%
-        dplyr::select(Studiegroep,
-                      Achternaam,
-                      Plaats,
-                      jaartal,
-                      Lidmaatschapsnummer,
-                      SK_VKX) %>%
-        dplyr::arrange(Studiegroep)
-      
-      outputToLog("Niet gematchte VKX leden met KLW", "")
-      print(VKX_lid_jaar_niet_gematched)
-      
-      data_totaal = rbind(data_totaal, VKX_lid_jaar_niet_gematched)
-      
-    }
-    
-    write.xlsx(data_totaal, "missende_KLW.xlsx", asTable = T)
-    
-    missende_KLW_samenvatting = data_totaal %>% group_by(Lidmaatschapsnummer, SK_VKX) %>% dplyr::summarise(
-      count = n(),
-      maxJaar = max(jaartal),
-      minJaar = min(jaartal)
-    )
-    
-    #KLW die nog wel gematched zouden moeten worden:
-    missende_KLW_samenvatting_selectie = missende_KLW_samenvatting %>% filter(minJaar > min(jaartallen))
+  if (nrow(data_KLW_VKX_Meta_Not_Join_VKX) > 0) {
     outputToLog(
-      "Voor deze bedrijven is er wellicht wel een KLW:",
-      nrow(missende_KLW_samenvatting_selectie)
+      "Aantal VKX bedrijven dat 1e keer NIET gematched is",
+      nrow(data_KLW_VKX_Meta_Not_Join_VKX)
     )
+    
+    data_KLW_VKX_Meta_Not_Join_VKX$SK = data_KLW_VKX_Meta_Not_Join_VKX$SK_VKX
+    data_KLW_VKX_Meta_Not_Join_VKX = verwijderNAKolom(data_KLW_VKX_Meta_Not_Join_VKX)
+    
+    if (length(unique(data_KLW_VKX_Meta_Not_Join_VKX$SK)) != nrow(data_KLW_VKX_Meta_Not_Join_VKX)) {
+      warning("SK van VKA lijst is niet uniek, matchen zal fout kunnen gaan!", NULL)
+    }
+    
+  } else {
+    
+    #Alle VKX data is gematched, maar welke KLW hebben we nog over?
+    data_KLW_Mismatch = rbind(data_KLW_Mismatch, data_KLW_VKX_Meta_Not_Join_KLW)
+    
+  } 
+  
+  if (nrow(data_KLW_VKX_Meta_Not_Join_KLW) > 0) {
+    outputToLog(
+      "Aantal KLW records dat 1e keer niet gematched is",
+      nrow(data_KLW_VKX_Meta_Not_Join_KLW)
+    )
+    
+    
+    data_KLW_VKX_Meta_Not_Join_KLW$SK = data_KLW_VKX_Meta_Not_Join_KLW$SK_KLW
+    data_KLW_VKX_Meta_Not_Join_KLW = verwijderNAKolom(data_KLW_VKX_Meta_Not_Join_KLW)
+    
+    if (length(unique(data_KLW_VKX_Meta_Not_Join_KLW$SK)) != nrow(data_KLW_VKX_Meta_Not_Join_KLW)) {
+      warning("SK van KLW lijst is niet uniek, matchen zal fout kunnen gaan!",
+                  "")
+    }
     
   }
   
+  #Joinen van data die niet gematched is op basis van PK gaan we nu joinen op basis van SK
+  
+  if (nrow(data_KLW_VKX_Meta_Not_Join_VKX) > 0 &
+      nrow(data_KLW_VKX_Meta_Not_Join_KLW) > 0) {
+    
+    
+    outputToLog("Start joining op basis van SK", NULL)
+    
+    data_KLW_VKX_Meta_2 = full_join(data_KLW_VKX_Meta_Not_Join_VKX,
+                                    data_KLW_VKX_Meta_Not_Join_KLW,
+                                    by = "SK")
+    
+    data_KLW_VKX_Meta_Join_2 = data_KLW_VKX_Meta_2 %>% filter(!is.na(SK_VKX) &
+                                                                !is.na(SK_KLW))
+    data_KLW_VKX_Meta_Not_Join_VKX_2 = data_KLW_VKX_Meta_2 %>% filter(is.na(SK_KLW))
+    data_KLW_VKX_Meta_Not_Join_KLW_2 = data_KLW_VKX_Meta_2 %>% filter(is.na(SK_VKX))
+    
+    if (nrow(data_KLW_VKX_Meta_Not_Join_VKX_2) > 0) {
+      
+      #Toevoegen van jaartal aan dataset voor overzicht van mismatches.
+      data_KLW_VKX_Meta_Not_Join_VKX_2$jaartal_mismatch = j
+      data_VKX_Mismatch = rbind(data_VKX_Mismatch, data_KLW_VKX_Meta_Not_Join_VKX_2)
+      
+      outputToLog(
+        "Aantal VKX bedrijven dat 2e keer niet gematched is",
+        nrow(data_KLW_VKX_Meta_Not_Join_VKX_2)
+      )
+      print(data_KLW_VKX_Meta_Not_Join_VKX_2)
+    }
+    
+    if (nrow(data_KLW_VKX_Meta_Not_Join_KLW_2) > 0) {
+      
+      #Alle VKX data is gematched, maar welke KLW hebben we nog over?
+      data_KLW_Mismatch = rbind(data_KLW_Mismatch, data_KLW_VKX_Meta_Not_Join_KLW_2)
+      
+      
+      outputToLog(
+        "Aantal KLW records dat 2e keer niet gematched is",
+        nrow(data_KLW_VKX_Meta_Not_Join_KLW_2)
+      )
+      
+    }
+    
+    
+    #Alle gematchede data samenvoegen
+    data_KLW_VKX_Meta_Matched = rbind(
+      data_KLW_VKX_Meta_Join %>% select(ID_KLW, Lidmaatschapsnummer, jaartal),
+      data_KLW_VKX_Meta_Join_2 %>% select(ID_KLW, Lidmaatschapsnummer, jaartal)
+    )
+  } else {
+    data_KLW_VKX_Meta_Matched = rbind(data_KLW_VKX_Meta_Join %>% select(ID_KLW, Lidmaatschapsnummer, jaartal))
+  }
+  
+  percentage_gematched_totaal = round(nrow(data_KLW_VKX_Meta_Matched) / nrow(data_KLW_VKX_Meta) * 100, 1)
+  outputToLog("Uiteindelijke percentage VKX bedrijven dat gematched is op basis van PK", percentage_gematched_totaal)
+  
+
+  #Data toevoegen aan iteratie van alle jaren.
+  data_KLW_VKX_Meta_Matched_Totaal = rbind(data_KLW_VKX_Meta_Matched_Totaal,
+                                           data_KLW_VKX_Meta_Matched)
   
 }
 
-#Elimineren van foutieve KLW
+#Wegschrijven van missende KLW voor VKX leden:
+write.xlsx(data_VKX_Mismatch, "VKX_Leden_Mismatch.xlsx", T)
 
-setwd(main_directory)
+#Wegschrijven van niet gematchede KLW
+write.xlsx(data_KLW_Mismatch, "KLW_Mismatch.xlsx", T)
+
+
+#Controleren KLW dataset. Output van de functie is een list met ID KLW die "fout" zijn.
+foute_KLW_inputs = controleDataset(data_KLW_input)
+
 min_jaartal = min(jaartallen)
 max_jaartal = max(jaartallen)
 
+#Selecteren van de foute KLW en parameters selecteren waarop gecontroleerd is.
 foute_KLW = data_KLW_VKX %>% filter(ID_KLW %in% foute_KLW_inputs) %>% select(
   "Lidmaatschapsnummer",
   "SK_VKX",
@@ -597,32 +537,35 @@ foute_KLW = data_KLW_VKX %>% filter(ID_KLW %in% foute_KLW_inputs) %>% select(
   "rants_geh_re",
   "rants_geh_vem"
 ) %>% arrange(Lidmaatschapsnummer, jaartal)
-write.xlsx(
-  foute_KLW,
-  paste(
-    "foutieve_KLW_dataset_VKA_",
-    min_jaartal,
-    "_",
-    max_jaartal,
-    ".xlsx",
-    sep = ""
-  )
-)
 
-foute_KLW_Lid = unique.data.frame(foute_KLW %>% select(Lidmaatschapsnummer, SK_VKX))
+write.xlsx( foute_KLW,  paste("foutieve_KLW_dataset_VKA_",min_jaartal,"_",max_jaartal,".xlsx",sep = ""))
 
+
+#Negeren van foute KLW in de dataset.
 data_KLW_VKX_Schoon = data_KLW_VKX %>% filter(!ID_KLW %in% foute_KLW_inputs)
 
-data_KLW_VKX_Schoon_Totaal = data_KLW_VKX_Schoon %>% group_by(Lidmaatschapsnummer) %>% dplyr::summarise(countBedrijf = n()) %>% filter (countBedrijf == length(jaartallen))#%>% group_by(countBedrijf) %>% summarise(countJaar = n())
+#Nu dat de foute KLW zijn verwijderd, zijn er bedrijven die niet voor álle jaartallen een KLW hebben.
+#We groeperen per lidmaatschapsnummer (VKX Lid) en sommeren dan het aantal observaties (aantal reseterende KLW jaren).
+#Deze sommatie moet gelijk zijn aan het aantal jaren in de dataset. 
+#Bijvoorbeeld, als we jaren 2018,2019 en 2020 willen in de dataset, dan moeten er voor ieder VKX lid 3 observaties zijn.
+#Hieronder selecteren 
+data_KLW_VKX_Schoon_Totaal = data_KLW_VKX_Schoon %>% 
+  select(Lidmaatschapsnummer, jaartal) %>%
+  group_by(Lidmaatschapsnummer) %>% 
+  dplyr::summarise(countBedrijf = n()) %>% 
+  filter(countBedrijf == length(jaartallen))
 
 data_KLW_VKX_Compleet = data_KLW_VKX_Schoon %>% filter(Lidmaatschapsnummer %in% data_KLW_VKX_Schoon_Totaal$Lidmaatschapsnummer)
 
-outputToLog("Aantal bedrijven in deze dataset: ",
+outputToLog("Aantal bedrijven in deze VKX dataset: ",
             nrow(data_KLW_VKX_Schoon_Totaal))
+
+percentage_VKX = round( nrow(data_KLW_VKX_Schoon_Totaal) / nrow(data_VKX_Meta) * 100, 1)
+outputToLog("Percentage bedrijven van VKX in dataset: ", percentage_VKX)
 
 data_KLW_VKX_Compleet = data_KLW_VKX_Compleet %>% arrange(Lidmaatschapsnummer, jaartal)
 
-
+#Wegschrijven dataset naar excel.
 write.xlsx(
   data_KLW_VKX_Compleet,
   paste("dataset_VKA_", min_jaartal, "_", max_jaartal, ".xlsx", sep = "")
