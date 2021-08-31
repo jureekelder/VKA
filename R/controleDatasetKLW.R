@@ -38,11 +38,6 @@ controleDatasetKLW <- function(dataset){
     lower = as.numeric(checks[i,2])
     upper = as.numeric(checks[i,3])
     
-    print(variable)
-    print(lower)
-    print(upper)
-    
-    
     indexlower = NULL
     if(any(x[,variable] < lower, na.rm = T)){
       indexlower = which(x[,variable] < lower)
@@ -66,7 +61,6 @@ controleDatasetKLW <- function(dataset){
     }
     
     if(!is.null(index)){
-      #print(index)
       KLW_id = x[index,"ID_KLW"]
       KLW_id_list = c(KLW_id_list, KLW_id)
     }
@@ -74,8 +68,6 @@ controleDatasetKLW <- function(dataset){
     
     
   }
-  
-  #print(KLW_id_list)
   
   return(unique(KLW_id_list))
   
