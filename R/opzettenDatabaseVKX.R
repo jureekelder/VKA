@@ -18,7 +18,7 @@
 #vergelijkenKLWBestanden
 #controleDatasetScript
 
-createDataBaseVKX <- function(type,
+opzettenDataBaseVKX <- function(type,
            jaartal_start,
            jaartal_eind,
            path_ledendata,
@@ -35,8 +35,9 @@ createDataBaseVKX <- function(type,
              "Plaats"),
            path_klw_bestanden = NULL){
 
-#Wat is de working directory:
-outputToLog("Working Directory is", getwd())
+
+  
+library(dplyr)  
   
 #Het laden van benodigde functies die ook op GIT staan.
 library(devtools)
@@ -56,18 +57,19 @@ if(!is.character(type)){
   stop("type (VKA/VKO/...) is niet gespecificeerd als character string")
 }
 
-if(!is.integer(jaartal_start)){
-  stop("jaartal_start is geen integer")
+if(!is.numeric(jaartal_start)){
+  stop("jaartal_start is geen numeric")
 }
   
-if(!is.integer(jaartal_eind)){
-    stop("jaartal_eind is geen integer")
+if(!is.numeric(jaartal_eind)){
+    stop("jaartal_eind is geen numeric")
 }
   
 if(jaartal_start > jaartal_eind){
   stop("jaartal_start mag niet groter zijn dan jaartal_eind")
 }
-  
+
+#Welke sequence van jaartallen willen we in de dataset?  
 jaartallen = seq(jaartal_start, jaartal_eind, 1)
 
 #Algemene functies
@@ -77,7 +79,10 @@ outputToLog <- function(name, quantity) {
   cat("\n")
 }
 
-outputToLog("Functie gestart: bouwen database voor", type)
+#Wat is de working directory:
+outputToLog("Working Directory is", getwd())
+
+outputToLog("Functie gestart --> bouwen database voor", type)
 outputToLog("Voor jaartallen", jaartallen)
 
 #Functie om getallen uit string te krijgen.
@@ -132,7 +137,7 @@ getCharactersFromString <- function(x) {
 
 #Inlezen van Ledenlijst
 if(file.exists(path_ledendata)){
-data_VKX_input = getDataInFolder(path)
+data_VKX_input = getDataInFolder(path_ledendata)
 } else {
   stop("Path naar Ledendata bestaat niet!")
 }
@@ -228,11 +233,13 @@ if(file.exists(path_dumpfiles)){
   }
   
 } else {
-  stop("Path naar Ledendata bestaat niet!")
+  stop("Path naar DUMP files bestaat niet!")
 }
 
 data_KLW_input = data_KLW_all
 
+#Samenvatting van KLW input
+outputToLog("Samenvatting van ingelezen KLW data", str(data_KLW_input))
 
 #CHECKS OP KLW DATA:
 
@@ -243,7 +250,7 @@ is_all_numeric <- function(x) {
   ))))) & is.character(x)
 }
 
-data_KLW_input = data_KLW_input %>% mutate_if(is_all_numeric, as.numeric)
+data_KLW_input = data_KLW_input %>% dplyr::mutate_if(is_all_numeric, as.numeric)
 
 
 if (length(unique(data_KLW_input$versie)) > 1) {
@@ -273,10 +280,10 @@ if (TRUE) {
 }
 
 #Selecteer enkel de jaartallen die we willen hebben.
-data_KLW_input = data_KLW_input %>% filter(jaartal %in% jaartallen)
+data_KLW_input = data_KLW_input %>% dplyr::filter(jaartal %in% jaartallen)
 
 #Zitten er dubbele KringloopWijzers in de dataset?
-data_KLW_input_duplicates = duplicated(data_KLW_input %>% select(jaartal, PK_KLW))
+data_KLW_input_duplicates = duplicated(data_KLW_input %>% dplyr::select(jaartal, PK_KLW))
 
 if (any(data_KLW_input_duplicates)) {
   outputToLog("Dubbele KLW data in bestand: ", data_KLW_input[data_KLW_input_duplicates, c("naaminv", "jaartal")])
@@ -302,7 +309,7 @@ data_KLW_input$kring1_benut_mst = as.numeric(sapply(data_KLW_input$kring1_benut_
 data_KLW_input = toevoegenKengetallenKLW(data_KLW_input)
 
 #Kolommen sorteren
-data_KLW_input = data_KLW_input %>% select(ID_KLW,
+data_KLW_input = data_KLW_input %>% dplyr::select(ID_KLW,
                                            PK_KLW,
                                            SK_KLW,
                                            jaartal,
@@ -323,10 +330,12 @@ if (!is.null(path_klw_bestanden)) {
     
     data_KLW_bron$naaminv_geenjaar = sapply(data_KLW_bron$naam_plaats, getCharactersFromString)
     data_KLW_bron$naaminv_geenjaar = tolower(gsub(" ", "", data_KLW_bron$naaminv_geenjaar, fixed = T))
+  } else {
+    stop("Path voor KLW bronbestanden bestaat niet")
   }
   
-  data_KLW_naam_plaats = data_KLW_input %>% select(naaminv_geenjaar, jaartal)
-  data_KLW_bron = data_KLW_bron %>% select(naaminv_geenjaar, jaartal)
+  data_KLW_naam_plaats = data_KLW_input %>% dplyr::select(naaminv_geenjaar, jaartal)
+  data_KLW_bron = data_KLW_bron %>% dplyr::select(naaminv_geenjaar, jaartal)
   summary(comparedf(
     data_KLW_bron,
     data_KLW_naam_plaats,
@@ -334,11 +343,8 @@ if (!is.null(path_klw_bestanden)) {
   ))
   
 } else {
-  stop("Path voor KLW bronbestanden bestaat niet")
-}
-
-}
-
+  outputToLog("Vergelijking met ruwe data in mappen wordt overgeslagen. Path_klw_bestanden is NULL.")
+} 
 
 
 data_KLW_Meta = data_KLW_input %>%
@@ -354,9 +360,9 @@ data_KLW_Meta = data_KLW_input %>%
 
 
 #### Gebaseerd op naaminv, probeer KLW samen te voegen
-data_KLW_SK_jaar = data_KLW_input %>% select(ID_KLW, SK_KLW, jaartal)
+data_KLW_SK_jaar = data_KLW_input %>% dplyr::select(ID_KLW, SK_KLW, jaartal)
 
-data_KLW_SK_jaar_count = data_KLW_SK_jaar %>% group_by(SK_KLW, jaartal) %>% dplyr::summarise(count = dplyr::n())
+data_KLW_SK_jaar_count = data_KLW_SK_jaar %>% dplyr::group_by(SK_KLW, jaartal) %>% dplyr::summarise(count = dplyr::n())
 
 #MATCHEN VAN VKX DATA AAN KLW DATA OP BASIS VAN PK, SK, optioneel: KVK
 #DIT GEBEURT PER JAARTAL:
@@ -374,7 +380,7 @@ for (j in jaartallen) {
   outputToLog("VKX leden koppelen aan KLW voor jaartal", j)
   
   #VKX ledenbestand aan KLW data koppelen op basis van de PK voor huidige jaar
-  data_KLW_Meta_Jaar = data_KLW_Meta %>% filter(jaartal == j)
+  data_KLW_Meta_Jaar = data_KLW_Meta %>% dplyr::filter(jaartal == j)
   
   if(nrow(data_KLW_Meta_Jaar) > nrow(data_VKX_Meta)){
     outputToLog("Er zijn meer KLW observaties dan VKX leden", NULL)
@@ -389,12 +395,12 @@ for (j in jaartallen) {
   #Door de full join zijn de regels: A) goed gematched B) VKX data is niet gematched, C) KLW dat niet gematched
   #In geval van B) --> dan is kolom SK_KLW gelijk aan NA
   #In geval van C) --> dan is kolom SK_VKX gelijk aan NA
-  data_KLW_VKX_Meta_Join = data_KLW_VKX_Meta %>% filter(!is.na(SK_VKX) &
+  data_KLW_VKX_Meta_Join = data_KLW_VKX_Meta %>% dplyr::filter(!is.na(SK_VKX) &
                                                           !is.na(SK_KLW))
   
   #Achterhalen welke KLW en welke VKX leden nog niet gematched zijn.
-  data_KLW_VKX_Meta_Not_Join_VKX = data_KLW_VKX_Meta %>% filter(is.na(SK_KLW))
-  data_KLW_VKX_Meta_Not_Join_KLW = data_KLW_VKX_Meta %>% filter(is.na(SK_VKX))
+  data_KLW_VKX_Meta_Not_Join_VKX = data_KLW_VKX_Meta %>% dplyr::filter(is.na(SK_KLW))
+  data_KLW_VKX_Meta_Not_Join_KLW = data_KLW_VKX_Meta %>% dplyr::filter(is.na(SK_VKX))
   
   #Test om te kijken of het aantal regels gelijk is.
   numberOfRows = (
@@ -457,10 +463,10 @@ for (j in jaartallen) {
                                     data_KLW_VKX_Meta_Not_Join_KLW,
                                     by = "SK")
     
-    data_KLW_VKX_Meta_Join_2 = data_KLW_VKX_Meta_2 %>% filter(!is.na(SK_VKX) &
+    data_KLW_VKX_Meta_Join_2 = data_KLW_VKX_Meta_2 %>% dplyr::filter(!is.na(SK_VKX) &
                                                                 !is.na(SK_KLW))
-    data_KLW_VKX_Meta_Not_Join_VKX_2 = data_KLW_VKX_Meta_2 %>% filter(is.na(SK_KLW))
-    data_KLW_VKX_Meta_Not_Join_KLW_2 = data_KLW_VKX_Meta_2 %>% filter(is.na(SK_VKX))
+    data_KLW_VKX_Meta_Not_Join_VKX_2 = data_KLW_VKX_Meta_2 %>% dplyr::filter(is.na(SK_KLW))
+    data_KLW_VKX_Meta_Not_Join_KLW_2 = data_KLW_VKX_Meta_2 %>% dplyr::filter(is.na(SK_VKX))
     
     if (nrow(data_KLW_VKX_Meta_Not_Join_VKX_2) > 0) {
       
@@ -491,11 +497,11 @@ for (j in jaartallen) {
     
     #Alle gematchede data samenvoegen
     data_KLW_VKX_Meta_Matched = rbind(
-      data_KLW_VKX_Meta_Join %>% select(ID_KLW, Lidmaatschapsnummer, jaartal),
-      data_KLW_VKX_Meta_Join_2 %>% select(ID_KLW, Lidmaatschapsnummer, jaartal)
+      data_KLW_VKX_Meta_Join %>% dplyr::select(ID_KLW, Lidmaatschapsnummer, jaartal),
+      data_KLW_VKX_Meta_Join_2 %>% dplyr::select(ID_KLW, Lidmaatschapsnummer, jaartal)
     )
   } else {
-    data_KLW_VKX_Meta_Matched = rbind(data_KLW_VKX_Meta_Join %>% select(ID_KLW, Lidmaatschapsnummer, jaartal))
+    data_KLW_VKX_Meta_Matched = rbind(data_KLW_VKX_Meta_Join %>% dplyr::select(ID_KLW, Lidmaatschapsnummer, jaartal))
   }
   
   percentage_gematched_totaal = round(nrow(data_KLW_VKX_Meta_Matched) / nrow(data_KLW_VKX_Meta) * 100, 1)
@@ -522,7 +528,7 @@ min_jaartal = min(jaartallen)
 max_jaartal = max(jaartallen)
 
 #Selecteren van de foute KLW en parameters selecteren waarop gecontroleerd is.
-foute_KLW = data_KLW_VKX %>% filter(ID_KLW %in% foute_KLW_inputs) %>% select(
+foute_KLW = data_KLW_VKX %>% dplyr::filter(ID_KLW %in% foute_KLW_inputs) %>% dplyr::select(
   "Lidmaatschapsnummer",
   "SK_VKX",
   "jaartal",
@@ -536,13 +542,13 @@ foute_KLW = data_KLW_VKX %>% filter(ID_KLW %in% foute_KLW_inputs) %>% select(
   "rants_geh_p",
   "rants_geh_re",
   "rants_geh_vem"
-) %>% arrange(Lidmaatschapsnummer, jaartal)
+) %>% dplyr::arrange(Lidmaatschapsnummer, jaartal)
 
 write.xlsx( foute_KLW,  paste("foutieve_KLW_dataset_VKA_",min_jaartal,"_",max_jaartal,".xlsx",sep = ""))
 
 
 #Negeren van foute KLW in de dataset.
-data_KLW_VKX_Schoon = data_KLW_VKX %>% filter(!ID_KLW %in% foute_KLW_inputs)
+data_KLW_VKX_Schoon = data_KLW_VKX %>% dplyr::filter(!ID_KLW %in% foute_KLW_inputs)
 
 #Nu dat de foute KLW zijn verwijderd, zijn er bedrijven die niet voor álle jaartallen een KLW hebben.
 #We groeperen per lidmaatschapsnummer (VKX Lid) en sommeren dan het aantal observaties (aantal reseterende KLW jaren).
@@ -550,12 +556,12 @@ data_KLW_VKX_Schoon = data_KLW_VKX %>% filter(!ID_KLW %in% foute_KLW_inputs)
 #Bijvoorbeeld, als we jaren 2018,2019 en 2020 willen in de dataset, dan moeten er voor ieder VKX lid 3 observaties zijn.
 #Hieronder selecteren 
 data_KLW_VKX_Schoon_Totaal = data_KLW_VKX_Schoon %>% 
-  select(Lidmaatschapsnummer, jaartal) %>%
-  group_by(Lidmaatschapsnummer) %>% 
+  dplyr::select(Lidmaatschapsnummer, jaartal) %>%
+  dplyr::group_by(Lidmaatschapsnummer) %>% 
   dplyr::summarise(countBedrijf = n()) %>% 
-  filter(countBedrijf == length(jaartallen))
+  dplyr::filter(countBedrijf == length(jaartallen))
 
-data_KLW_VKX_Compleet = data_KLW_VKX_Schoon %>% filter(Lidmaatschapsnummer %in% data_KLW_VKX_Schoon_Totaal$Lidmaatschapsnummer)
+data_KLW_VKX_Compleet = data_KLW_VKX_Schoon %>% dplyr::filter(Lidmaatschapsnummer %in% data_KLW_VKX_Schoon_Totaal$Lidmaatschapsnummer)
 
 outputToLog("Aantal bedrijven in deze VKX dataset: ",
             nrow(data_KLW_VKX_Schoon_Totaal))
@@ -563,7 +569,7 @@ outputToLog("Aantal bedrijven in deze VKX dataset: ",
 percentage_VKX = round( nrow(data_KLW_VKX_Schoon_Totaal) / nrow(data_VKX_Meta) * 100, 1)
 outputToLog("Percentage bedrijven van VKX in dataset: ", percentage_VKX)
 
-data_KLW_VKX_Compleet = data_KLW_VKX_Compleet %>% arrange(Lidmaatschapsnummer, jaartal)
+data_KLW_VKX_Compleet = data_KLW_VKX_Compleet %>% dplyr::arrange(Lidmaatschapsnummer, jaartal)
 
 #Wegschrijven dataset naar excel.
 write.xlsx(

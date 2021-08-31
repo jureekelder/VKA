@@ -236,6 +236,6 @@ toevoegenKengetallenKLW <- function(database_klw){
   
   data$empty = ""
   
-  
+  return(data)
   
 }
