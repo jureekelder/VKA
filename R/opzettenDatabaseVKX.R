@@ -36,8 +36,9 @@ opzettenDataBaseVKX <- function(type,
            path_klw_bestanden = NULL){
 
 
-  
+#Laden libraries
 library(dplyr)  
+library(openxlsx)
   
 #Het laden van benodigde functies die ook op GIT staan.
 library(devtools)
@@ -343,7 +344,7 @@ if (!is.null(path_klw_bestanden)) {
   ))
   
 } else {
-  outputToLog("Vergelijking met ruwe data in mappen wordt overgeslagen. Path_klw_bestanden is NULL.")
+  outputToLog("Vergelijking met ruwe data in mappen wordt overgeslagen. Path_klw_bestanden is NULL.", NULL)
 } 
 
 
@@ -375,6 +376,12 @@ data_VKX_Mismatch = NULL
 
 #Initialiseren van KLW data die niet gematched zijn
 data_KLW_Mismatch = NULL
+
+#Functie om NA kolommen te verwijderen
+verwijderNAKolom <- function(x) {
+  y = x[, colSums(is.na(x)) != nrow(x)]
+  return(y)
+}
 
 for (j in jaartallen) {
   outputToLog("VKX leden koppelen aan KLW voor jaartal", j)
@@ -478,7 +485,7 @@ for (j in jaartallen) {
         "Aantal VKX bedrijven dat 2e keer niet gematched is",
         nrow(data_KLW_VKX_Meta_Not_Join_VKX_2)
       )
-      print(data_KLW_VKX_Meta_Not_Join_VKX_2)
+      print(data_KLW_VKX_Meta_Not_Join_VKX_2 %>% dplyr::select(Achternaam, Plaats, Lidmaatschapsnummer, PK_VKX, SK_VKX, postcodeVKX))
     }
     
     if (nrow(data_KLW_VKX_Meta_Not_Join_KLW_2) > 0) {
@@ -504,8 +511,8 @@ for (j in jaartallen) {
     data_KLW_VKX_Meta_Matched = rbind(data_KLW_VKX_Meta_Join %>% dplyr::select(ID_KLW, Lidmaatschapsnummer, jaartal))
   }
   
-  percentage_gematched_totaal = round(nrow(data_KLW_VKX_Meta_Matched) / nrow(data_KLW_VKX_Meta) * 100, 1)
-  outputToLog("Uiteindelijke percentage VKX bedrijven dat gematched is op basis van PK", percentage_gematched_totaal)
+  percentage_gematched_totaal = round(nrow(data_KLW_VKX_Meta_Matched) / nrow(data_VKX_Meta) * 100, 1)
+  outputToLog("Uiteindelijke percentage VKX bedrijven dat gematched is op basis van PK of SK voor dit jaar", percentage_gematched_totaal)
   
 
   #Data toevoegen aan iteratie van alle jaren.
@@ -514,15 +521,41 @@ for (j in jaartallen) {
   
 }
 
+totaal_mogelijke_combinaties = length(jaartallen) * nrow(data_VKX_Meta)
+
+percentage_VKX = round( nrow(data_KLW_VKX_Meta_Matched_Totaal) / totaal_mogelijke_combinaties * 100, 1)
+outputToLog("Percentage bedrijven van VKX in samengestelde dataset: ", percentage_VKX)
+
+
+data_KLW_VKX_Meta_Matched_Totaal = data_KLW_VKX_Meta_Matched_Totaal %>% dplyr::select(!jaartal)
+
+#VKX Lidmaatschapsnummer koppelen aan KLW data
+data_KLW_input_VKX = full_join(data_KLW_VKX_Meta_Matched_Totaal, data_KLW_input, by = "ID_KLW")
+#KLW data met VKX lidmaatschapsnummer koppelen aan VKX data
+data_KLW_VKX = full_join(data_VKX_input, data_KLW_input_VKX, by = "Lidmaatschapsnummer")
+data_KLW_VKX = data_KLW_VKX %>% select(
+  Studiegroep,
+  ID_KLW,
+  jaartal,
+  PK_VKX,
+  SK_VKX,
+  Achternaam,
+  Straatnaam,
+  Huisnummer,
+  Postcode,
+  Plaats,
+  everything()
+)
+data_KLW_VKX = data_KLW_VKX %>% arrange(Studiegroep, Lidmaatschapsnummer, jaartal)
+
 #Wegschrijven van missende KLW voor VKX leden:
 write.xlsx(data_VKX_Mismatch, "VKX_Leden_Mismatch.xlsx", T)
 
 #Wegschrijven van niet gematchede KLW
 write.xlsx(data_KLW_Mismatch, "KLW_Mismatch.xlsx", T)
 
-
 #Controleren KLW dataset. Output van de functie is een list met ID KLW die "fout" zijn.
-foute_KLW_inputs = controleDataset(data_KLW_input)
+foute_KLW_inputs = controleDatasetKLW(data_KLW_VKX)
 
 min_jaartal = min(jaartallen)
 max_jaartal = max(jaartallen)
@@ -544,7 +577,7 @@ foute_KLW = data_KLW_VKX %>% dplyr::filter(ID_KLW %in% foute_KLW_inputs) %>% dpl
   "rants_geh_vem"
 ) %>% dplyr::arrange(Lidmaatschapsnummer, jaartal)
 
-write.xlsx( foute_KLW,  paste("foutieve_KLW_dataset_VKA_",min_jaartal,"_",max_jaartal,".xlsx",sep = ""))
+write.xlsx( foute_KLW,  paste("foutieve_KLW_dataset_VKA_",min_jaartal,"_",max_jaartal,".xlsx",sep = ""), asTable = T)
 
 
 #Negeren van foute KLW in de dataset.
@@ -563,17 +596,18 @@ data_KLW_VKX_Schoon_Totaal = data_KLW_VKX_Schoon %>%
 
 data_KLW_VKX_Compleet = data_KLW_VKX_Schoon %>% dplyr::filter(Lidmaatschapsnummer %in% data_KLW_VKX_Schoon_Totaal$Lidmaatschapsnummer)
 
-outputToLog("Aantal bedrijven in deze VKX dataset: ",
+outputToLog("Aantal bedrijven in deze opgeschoonde VKX dataset: ",
             nrow(data_KLW_VKX_Schoon_Totaal))
 
 percentage_VKX = round( nrow(data_KLW_VKX_Schoon_Totaal) / nrow(data_VKX_Meta) * 100, 1)
-outputToLog("Percentage bedrijven van VKX in dataset: ", percentage_VKX)
+outputToLog("Percentage bedrijven van VKX in opgeschoonde dataset: ", percentage_VKX)
 
 data_KLW_VKX_Compleet = data_KLW_VKX_Compleet %>% dplyr::arrange(Lidmaatschapsnummer, jaartal)
 
 #Wegschrijven dataset naar excel.
 write.xlsx(
   data_KLW_VKX_Compleet,
-  paste("dataset_VKA_", min_jaartal, "_", max_jaartal, ".xlsx", sep = "")
+  paste("dataset_VKA_", min_jaartal, "_", max_jaartal, ".xlsx", sep = ""),
+  asTable = T
 )
 }
