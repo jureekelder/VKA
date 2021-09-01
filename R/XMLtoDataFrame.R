@@ -43,7 +43,7 @@ XMLtoDataFrame <- function(path_xml_files){
     
     for(name in names(xml_df_vrd)){
       
-      if(any(str_detect(name, c("Krachtvoer", "Overigrvbp")))){
+      if(any(str_detect(name, c("Krachtvoer")))){
         
         krachtvoer_found = TRUE
         
