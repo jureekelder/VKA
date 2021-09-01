@@ -33,7 +33,7 @@ XMLtoDataFrame <- function(path_xml_files){
     jaartal = pull(xml_df_algemeen %>% dplyr::select(jaartal))
     kvk_nummer = pull(xml_df_algemeen %>% dplyr::select(kvk_nummer))
     
-    #Verkrijgen van Aanleg sectie uit XML.
+    #Verkrijgen van Aanleg sectie uit XML. # VRDAANLEG + VRDBEGIN - VRDEIND = VERBRUIK
     xml_df_vrd = tibble::as_tibble(xml_file) %>% tidyr::unnest_longer(KW007_Input) %>% dplyr::filter(KW007_Input_id == "VRDAANLEG") %>% tidyr::unnest_wider(KW007_Input)
     
     krachtvoer_running = NULL
