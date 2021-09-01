@@ -7,10 +7,17 @@
 #jaartal_start --> integer die beginjaar van dataset aangeeft
 #jaartal_eind ---> integer die eindjaar van dataset aangeeft
 #path_ledendata --> string met path naar VKA of VKO ledendata
-#path_dunpfiles --> string met pah naar mappen met .DMPX files vanuit KLW. .DMPX files per jaar in een aparte submap.
+#path_dunpfiles --> string met path naar mappen met .DMPX files vanuit KLW. .DMPX files per jaar in een aparte submap.
 #kolommen_ledenlijst --> OPTIONEEL: welke kolommen uit de ledenlijst data hebben we nodig?
 #In het geval dat het om 1 jaar gaat kunnen jaartal_start en jaartal_eind als hetzelfde ingevuld worden
+#output_folder --> string met path naar output folder
 #
+
+#Voor testen:
+#path_ledendata = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/Ledenlijst"
+#path_dumpfiles = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/KLW_DUMP"
+#output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA"
+#opzettenDataBaseVKX(type = "VKA", 2013, 2020, path_ledendata = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/Ledenlijst", path_dumpfiles = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/KLW_DUMP", output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA")
 
 #BENODIGDE FUNCTIES:
 #getDataInFolder
@@ -23,6 +30,7 @@ opzettenDataBaseVKX <- function(type,
            jaartal_eind,
            path_ledendata,
            path_dumpfiles,
+           output_folder,
            kolommen_ledenlijst = c(
              "Lidmaatschapsnummer",
              "Studiegroep",
@@ -81,6 +89,9 @@ outputToLog <- function(name, quantity) {
 }
 
 #Wat is de working directory:
+if(file.exists(output_folder)){
+  setwd(output_folder)
+}
 outputToLog("Working Directory is", getwd())
 
 outputToLog("Functie gestart --> bouwen database voor", type)
@@ -549,10 +560,10 @@ data_KLW_VKX = data_KLW_VKX %>% select(
 data_KLW_VKX = data_KLW_VKX %>% arrange(Studiegroep, Lidmaatschapsnummer, jaartal)
 
 #Wegschrijven van missende KLW voor VKX leden:
-write.xlsx(data_VKX_Mismatch, "VKX_Leden_Mismatch.xlsx", T)
+write.xlsx(data_VKX_Mismatch, "VKX_Leden_Mismatch.xlsx", T, overwrite = T)
 
 #Wegschrijven van niet gematchede KLW
-write.xlsx(data_KLW_Mismatch, "KLW_Mismatch.xlsx", T)
+write.xlsx(data_KLW_Mismatch, "KLW_Mismatch.xlsx", T, overwrite = T)
 
 #Controleren KLW dataset. Output van de functie is een list met ID KLW die "fout" zijn.
 foute_KLW_inputs = controleDatasetKLW(data_KLW_VKX)
@@ -577,7 +588,7 @@ foute_KLW = data_KLW_VKX %>% dplyr::filter(ID_KLW %in% foute_KLW_inputs) %>% dpl
   "rants_geh_vem"
 ) %>% dplyr::arrange(Lidmaatschapsnummer, jaartal)
 
-write.xlsx( foute_KLW,  paste("foutieve_KLW_dataset_VKA_",min_jaartal,"_",max_jaartal,".xlsx",sep = ""), asTable = T)
+write.xlsx( foute_KLW,  paste("foutieve_KLW_dataset_VKA_",min_jaartal,"_",max_jaartal,".xlsx",sep = ""), asTable = T, overwrite = T)
 
 
 #Negeren van foute KLW in de dataset.
@@ -605,9 +616,12 @@ outputToLog("Percentage bedrijven van VKX in opgeschoonde dataset: ", percentage
 data_KLW_VKX_Compleet = data_KLW_VKX_Compleet %>% dplyr::arrange(Lidmaatschapsnummer, jaartal)
 
 #Wegschrijven dataset naar excel.
+#Zorgen dat de kolomnamen uniek zijn
+names_df = make.unique(colnames(data_KLW_VKX_Compleet),sep = "_")
+colnames(data_KLW_VKX_Compleet) = names_df
 write.xlsx(
   data_KLW_VKX_Compleet,
   paste("dataset_VKA_", min_jaartal, "_", max_jaartal, ".xlsx", sep = ""),
-  asTable = T
+  asTable = F, overwrite = T
 )
 }
