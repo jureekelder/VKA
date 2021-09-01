@@ -125,6 +125,7 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
   
   #Kolommen die we nodig hebben
   kolommen_voerwinst = c("jaartal",
+                     "kvk_nummer",
                      "Lidmaatschapsnummer",
                      "melk_bedr",
                      "melk_vet",
@@ -353,9 +354,25 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
   } else {
     
     dataset_xml =  XMLtoDataFrame(path_input_xml)
+    
+    #Zorg dat numerieke kolommen als numeriek worden opgeslagen!
+    is_all_numeric <- function(x) {
+      !any(is.na(suppressWarnings(as.numeric(na.omit(
+        x
+      ))))) & is.character(x)
+    }
+    
+    dataset_xml = dataset_xml %>% dplyr::mutate_if(is_all_numeric, as.numeric)
+    
     dataset_xml = dataset_xml %>% mutate(vem_categorie = ifelse(vem > 850, "hoog", "laag"))
     
-    dataset_xml_samengevat = dataset_xml %>% group_by(kvk_nummer, jaartal, type, vem_categorie) %>% dplry::summarise(vem_gewogen = weighted.mean(vem, hoeveelheid))
+
+    
+    print(str(dataset_xml))
+    
+    dataset_xml_samengevat = dataset_xml %>% group_by(kvk_nummer, jaartal, type, vem_categorie) %>% dplyr::summarise(vem_gewogen = weighted.mean(vem, hoev))
+    
+    test = 1
     
   }
   
@@ -372,14 +389,12 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(saldo_ruwvoer_verkoop = saldo_verkoop_overschot_gras + saldo_verkoop_overschot_mais)
   
 
-  
-
 
   return(as.data.frame(dataset_voerwinst))
   
 }
 
-output = berekenVoerwinst(path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/dataset_Voerwinst", path_input_xml = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020", bijproducten_algemeen = TRUE)
+output = berekenVoerwinst(path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/dataset_Voerwinst", path_input_xml = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel", bijproducten_algemeen = FALSE)
 
 setwd("C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/resultaat_Voerwinst")
 write.xlsx((output), "data_voerwinst.xlsx", asTable = T, overwrite = T)
