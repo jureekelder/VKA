@@ -5,14 +5,21 @@
 
 
 #INPUTS
-#path_dataset --> string met path naar mappen met .DMPX files vanuit KLW. .DMPX files per jaar in een aparte submap.
+#path_dataset --> string met path naar dataset KLW
 #path_input_xml --> string met path naar mappen met input.xml files voor KLW. Hierop een script loslaten om bijproducten in te lezen.
 #bijproducten_algmeen --> boolean: moeten de waardes van krachtvoer en bijproducten uit rantsoenberekening gehaald worden of specifiek uit input xml.
 
 #BENODIGDE FUNCTIES:
 #getDataInFolder
+#XMLtoDataFrame
 
-opzettenDataBaseVKX <- function(path_dataset, path_input_xml = NULL, bijproducten_algemeen = TRUE){
+
+#Voor testen:
+#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020"
+#path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/dataset_Voerwinst"
+
+
+berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_algemeen = TRUE){
   
   if(!bijproducten_algemeen){
     if(is.null(path_input_xml)){
@@ -30,7 +37,8 @@ opzettenDataBaseVKX <- function(path_dataset, path_input_xml = NULL, bijproducte
   
   #Het laden van benodigde functies die ook op GIT staan.
   library(devtools)
-  scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R")
+  scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R",
+                        "https://raw.githubusercontent.com/jureekelder/VKA/main/R/XMLtoDataFrame.R")
   
   
   for(script in scripts_to_source){
@@ -155,13 +163,13 @@ opzettenDataBaseVKX <- function(path_dataset, path_input_xml = NULL, bijproducte
                      "mp_verbruik",
                      "gebrnorm1",
                      "gebrnorm2",
-                     "excr_specinc1",
-                     "excr_specinc2",
+                     "excr_spec1",
+                     "excr_spec2",
                      "mais_dmst_m3",
                      "akker_dmst_m3",
-                     "grasb_kmst_kgn",
+                     "natuur_kmst_kgn",
                      "graspr_kmst_kgn",
-                     "grasb_kmst_kgp2o5",
+                     "natuur_kmst_kgp2o5",
                      "graspr_kmst_kgp2o5",
                      "mais_kmst_kgn",
                      "mais_kmst_kgp2o5",
@@ -185,7 +193,7 @@ opzettenDataBaseVKX <- function(path_dataset, path_input_xml = NULL, bijproducte
   bereken_melkprijs <- function(procent_vet, procent_eiwit, prijs_vet, prijs_eiwit, prijs_lactose, procent_lactose, netto_weidepremie, uren_weidegang, criterium_weidegang){
     
     #Berekening basis melkprijs
-    melkprijs  = procent_vet / 100 * + procent_eiwit / 100 * prijs_eiwit + procent_lactose / 100 * prijs_lactose
+    melkprijs  = procent_vet / 100 * prijs_vet + procent_eiwit / 100 * prijs_eiwit + procent_lactose / 100 * prijs_lactose
     
     #Als weide-uren > criterium, dan de weidepremie toevoegen aan melkprijs
     if(uren_weidegang >= criterium_weidegang){
@@ -194,9 +202,12 @@ opzettenDataBaseVKX <- function(path_dataset, path_input_xml = NULL, bijproducte
     
     return(melkprijs)
     
+    
   }
   
-  dataset_voerwinst %>% dplyr::mutate(melkprijs = bereken_melkprijs(
+
+  
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(melkprijs = bereken_melkprijs(
     procent_vet = melk_vet,
     procent_eiwit = melk_eiwit,
     prijs_vet = prijs_vet,
@@ -207,8 +218,8 @@ opzettenDataBaseVKX <- function(path_dataset, path_input_xml = NULL, bijproducte
     uren_weidegang = urenweidenmelkkoeien,
     criterium_weidegang = criterium_weidegang
   ))
-  
-  dataset_voerwinst %>% dplyr::mutate(melkgeld = melkprijs * melk_bedr)
+
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(melkgeld = melkprijs * melk_bedr)
   
 
   # AAN- EN AFVOER VEE
@@ -224,141 +235,151 @@ opzettenDataBaseVKX <- function(path_dataset, path_input_xml = NULL, bijproducte
   # 
   
   #Mutaties Vee
-  dataset_voerwinst %>% dplyr::mutate(sterfte_koeien = nkoe * (procent_sterfte_koeien / 100))
-  dataset_voerwinst %>% dplyr::mutate(nnuka_njongvee_kl1jr =(nkalf_vk + nnuka_vk + nkalf)  )
-  dataset_voerwinst %>% dplyr::mutate(sterfte_nuka = nnuka_njongvee_kl1jr * (procent_sterfte_nuka / 100))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(sterfte_koeien = nkoe * (procent_sterfte_koeien / 100))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(nnuka_njongvee_kleenjr = (nkalf_vk + nnuka_vk + nkalf)  )
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(sterfte_nuka = nnuka_njongvee_kleenjr * (procent_sterfte_nuka / 100))
   
-  dataset_voerwinst %>% dplyr::mutate(verkoop_koeien = ifelse( ((nkoe_vk - sterfte_koeien) > nkoe_vk), 0, (nkoe_vk - sterfte_koeien)))
-  dataset_voerwinst %>% dplyr::mutate(verkoop_jongvee_kl1jaar = nkalf_vk)
-  dataset_voerwinst %>% dplyr::mutate(verkoop_jongvee_gr1jaar = npink_vk)
-  dataset_voerwinst %>% dplyr::mutate(verkoop_nuka = nnuka_vk - sterfte_nuka)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verkoop_koeien = ifelse( ((nkoe_vk - sterfte_koeien) > nkoe_vk), 0, (nkoe_vk - sterfte_koeien)))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verkoop_jongvee_kl1jaar = nkalf_vk)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verkoop_jongvee_gr1jaar = npink_vk)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verkoop_nuka = nnuka_vk - sterfte_nuka)
   
-  dataset_voerwinst %>% dplyr::mutate(verkoop_koeien_waarde = verkoop_koeien * prijs_verkoop_koeien)
-  dataset_voerwinst %>% dplyr::mutate(verkoop_jongvee_kl1jaar_waarde = verkoop_jongvee_kl1jaar * prijs_verkoop_jongvee_kl1jaar)
-  dataset_voerwinst %>% dplyr::mutate(verkoop_jongvee_gr1jaar_waarde = verkoop_jongvee_kl1jaar * prijs_verkoop_jongvee_gr1jaar)
-  dataset_voerwinst %>% dplyr::mutate(verkoop_nuka_waarde = verkoop_nuka * prijs_verkoop_nuka)
-  dataset_voerwinst %>% dplyr::mutate(verkoop_dieren_waarde = verkoop_koeien_waarde + verkoop_jongvee_kl1jaar_waarde + verkoop_jongvee_gr1jaar_waarde + verkoop_nuka_waarde)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verkoop_koeien_waarde = verkoop_koeien * prijs_verkoop_koeien)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verkoop_jongvee_kl1jaar_waarde = verkoop_jongvee_kl1jaar * prijs_verkoop_jongvee_kl1jaar)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verkoop_jongvee_gr1jaar_waarde = verkoop_jongvee_kl1jaar * prijs_verkoop_jongvee_gr1jaar)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verkoop_nuka_waarde = verkoop_nuka * prijs_verkoop_nuka)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verkoop_dieren_waarde = verkoop_koeien_waarde + verkoop_jongvee_kl1jaar_waarde + verkoop_jongvee_gr1jaar_waarde + verkoop_nuka_waarde)
   
-  dataset_voerwinst %>% dplyr::mutate(aankoop_koeien_waarde = aankoop_koeien * prijs_aankoop_koeien)
-  dataset_voerwinst %>% dplyr::mutate(aankoop_jongvee_kl1jaar_waarde = aankoop_jongvee_kl1jaar * prijs_aankoop_jongvee_kl1jaar)
-  dataset_voerwinst %>% dplyr::mutate(aankoop_jongvee_gr1jaar_waarde = aankoop_jongvee_kl1jaar * prijs_aankoop_jongvee_gr1jaar)
-  dataset_voerwinst %>% dplyr::mutate(aankoop_nuka_waarde = aankoop_nuka * prijs_aankoop_nuka)
-  dataset_voerwinst %>% dplyr::mutate(aankoop_dieren_waarde = aankoop_koeien_waarde + aankoop_jongvee_kl1jaar_waarde + aankoop_jongvee_gr1jaar_waarde + aankoop_nuka_waarde)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(aankoop_koeien_waarde = nkoe_ak * prijs_aankoop_koeien)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(aankoop_jongvee_kl1jaar_waarde = nkalf_ak * prijs_aankoop_jongvee_kl1jaar)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(aankoop_jongvee_gr1jaar_waarde = npink_ak * prijs_aankoop_jongvee_gr1jaar)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(aankoop_nuka_waarde = nnuka_ak * prijs_aankoop_nuka)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(aankoop_dieren_waarde = aankoop_koeien_waarde + aankoop_jongvee_kl1jaar_waarde + aankoop_jongvee_gr1jaar_waarde + aankoop_nuka_waarde)
   
   
   #Arealen
-  dataset_voerwinst %>% dplyr::mutate(opp_bouwland = opp_mais + opp_overig)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(opp_bouwland = opp_mais + opp_overig)
   
   #Opbrengsten gewassen netto
-  dataset_voerwinst %>% dplyr::mutate(opb_gras_totaal_ds = oppgras * opb_gras_ds)
-  dataset_voerwinst %>% dplyr::mutate(opb_mais_totaal_ds = ifelse(opp_mais > 0, opp_mais * opb_mais_ds, NA))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(opb_gras_totaal_ds = oppgras * opb_gras_ds)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(opb_mais_totaal_ds = ifelse(opp_mais > 0, opp_mais * opb_mais_ds, NA))
   
   #Verbruik producten aan het voerhek --> vóór vervoederingsverliezen
-  dataset_voerwinst %>% dplyr::mutate(gr_verbruik_voerhek = ifelse(gr_verbruik > 0, gr_verbruik / 1.0, 0))
-  dataset_voerwinst %>% dplyr::mutate(gk_verbruik_voerhek = ifelse(gk_verbruik > 0, gk_verbruik / 0.95, 0))
-  dataset_voerwinst %>% dplyr::mutate(sm_verbruik_voerhek = ifelse(sm_verbruik > 0, sm_verbruik / 0.95, 0))
-  dataset_voerwinst %>% dplyr::mutate(ov_verbruik_voerhek = ifelse(ov_verbruik > 0, ov_verbruik / 0.97, 0))
-  dataset_voerwinst %>% dplyr::mutate(kv_verbruik_voerhek = ifelse(kv_verbruik > 0, kv_verbruik / 0.98, 0))
-  dataset_voerwinst %>% dplyr::mutate(mp_verbruik_voerhek = ifelse(mp_verbruik > 0, mp_verbruik / 0.98, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(gr_verbruik_voerhek = ifelse(gr_verbruik > 0, gr_verbruik / 1.0, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(gk_verbruik_voerhek = ifelse(gk_verbruik > 0, gk_verbruik / 0.95, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(sm_verbruik_voerhek = ifelse(sm_verbruik > 0, sm_verbruik / 0.95, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ov_verbruik_voerhek = ifelse(ov_verbruik > 0, ov_verbruik / 0.97, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_voerhek = ifelse(kv_verbruik > 0, kv_verbruik / 0.98, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(mp_verbruik_voerhek = ifelse(mp_verbruik > 0, mp_verbruik / 0.98, 0))
   
   #Verbruik producten zoals het in de kuil gaat --> vóór conserveringsverliezen
-  dataset_voerwinst %>% dplyr::mutate(gr_verbruik_kuil = ifelse(gr_verbruik_voerhek > 0, gr_verbruik_voerhek / 1.0, 0))
-  dataset_voerwinst %>% dplyr::mutate(gk_verbruik_kuil = ifelse(gk_verbruik_voerhek > 0, gk_verbruik_voerhek / 0.90, 0))
-  dataset_voerwinst %>% dplyr::mutate(sm_verbruik_kuil = ifelse(sm_verbruik_voerhek > 0, sm_verbruik_voerhek / 0.96, 0))
-  dataset_voerwinst %>% dplyr::mutate(ov_verbruik_kuil = ifelse(ov_verbruik_voerhek > 0, ov_verbruik_voerhek / 0.96, 0))
-  dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil = ifelse(kv_verbruik_voerhek > 0, kv_verbruik_voerhek / 1.0, 0))
-  dataset_voerwinst %>% dplyr::mutate(mp_verbruik_kuil = ifelse(mp_verbruik_voerhek > 0, mp_verbruik_voerhek / 1.0, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(gr_verbruik_kuil = ifelse(gr_verbruik_voerhek > 0, gr_verbruik_voerhek / 1.0, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(gk_verbruik_kuil = ifelse(gk_verbruik_voerhek > 0, gk_verbruik_voerhek / 0.90, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(sm_verbruik_kuil = ifelse(sm_verbruik_voerhek > 0, sm_verbruik_voerhek / 0.96, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ov_verbruik_kuil = ifelse(ov_verbruik_voerhek > 0, ov_verbruik_voerhek / 0.96, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil = ifelse(kv_verbruik_voerhek > 0, kv_verbruik_voerhek / 1.0, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(mp_verbruik_kuil = ifelse(mp_verbruik_voerhek > 0, mp_verbruik_voerhek / 1.0, 0))
   
   #Excretie en bemestingsruimte
-  dataset_voerwinst %>% dplyr::mutate(excretie_NP = excr_specinc1 / excr_specinc2)
-  dataset_voerwinst %>% dplyr::mutate(ton_dm_stikstof = gebrnorm1 / stikstof_gehalte_mest)
-  dataset_voerwinst %>% dplyr::mutate(ton_dm_fosfaat = excr_specinc1 / (stikstof_gehalte_mest / excretie_NP))
-  dataset_voerwinst %>% dplyr::mutate(ton_dm_gebruikt = min(ton_dm_stikstof, ton_dm_fosfaat))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(excretie_NP = excr_spec1 / excr_spec2)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ton_dm_stikstof = gebrnorm1 / stikstof_gehalte_mest)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ton_dm_fosfaat = excr_spec1 / (stikstof_gehalte_mest / excretie_NP))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ton_dm_gebruikt = min(ton_dm_stikstof, ton_dm_fosfaat))
   
-  dataset_voerwinst %>% dplyr::mutate(GVE_melkkoeien = nkoe * GVE_melkkoeien_factor)
-  dataset_voerwinst %>% dplyr::mutate(GVE_jongvee_kl1jr = nkalf * GVE_jongvee_kl1jaar_factor)
-  dataset_voerwinst %>% dplyr::mutate(GVE_jongvee_gr1jr = npink * GVE_jongvee_gr1jaar_factor)
-  dataset_voerwinst %>% dplyr::mutate(GVE_totaal = GVE_melkkoeien + GVE_jongvee_gr1jr + GVE_jongvee_kl1jr)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(GVE_melkkoeien = nkoe * GVE_melkkoeien_factor)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(GVE_jongvee_kl1jr = nkalf * GVE_jongvee_kl1jaar_factor)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(GVE_jongvee_gr1jr = npink * GVE_jongvee_gr1jaar_factor)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(GVE_totaal = GVE_melkkoeien + GVE_jongvee_gr1jr + GVE_jongvee_kl1jr)
   
-  dataset_voerwinst %>% dplyr::mutate(uren_weiden_jongvee_kl1jr = weidka_dgn * 24)
-  dataset_voerwinst %>% dplyr::mutate(uren_weiden_jongvee_gr1jr = weidpi_dgn * 24)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(uren_weiden_jongvee_kl1jr = weidka_dgn * 24)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(uren_weiden_jongvee_gr1jr = weidpi_dgn * 24)
   
   uren_in_jaar = 365*24
   
-  dataset_voerwinst %>% dplyr::mutate(GVE_weidegang = (urenweidenmelkkoeien / uren_in_jaar) * nkoe + (uren_weiden_jongvee_kl1jr / uren_in_jaar) * nkalf + (uren_weiden_jongvee_gr1jr / uren_in_jaar) * npink)
-  dataset_voerwinst %>% dplyr::mutate(GVE_weidegang_aandeel = GVE_weidegang / GVE_totaal)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(GVE_weidegang = (urenweidenmelkkoeien / uren_in_jaar) * nkoe + (uren_weiden_jongvee_kl1jr / uren_in_jaar) * nkalf + (uren_weiden_jongvee_gr1jr / uren_in_jaar) * npink)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(GVE_weidegang_aandeel = GVE_weidegang / GVE_totaal)
   
-  dataset_voerwinst %>% dplyr::mutate(ton_dm_uitgereden = ton_dm_gebruikt * (1 - GVE_weidegang_aandeel))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ton_dm_uitgereden = ton_dm_gebruikt * (1 - GVE_weidegang_aandeel))
   
-  dataset_voerwinst %>% dplyr::mutate(ton_dm_maisland = ifelse(opp_mais > 0, ifelse(mais_dmst_m3 > 0, opp_mais * mais_dmst_m3, 0), 0))
-  dataset_voerwinst %>% dplyr::mutate(ton_dm_akkerland = ifelse(opp_overig > 0, ifelse(akker_dmst_m3 > 0, opp_overig * akker_dmst_m3, 0), 0))
-  dataset_voerwinst %>% dplyr::mutate(ton_dm_bouwland = ton_dm_maisland + ton_dm_akkerland)
-  dataset_voerwinst %>% dplyr::mutate(ton_dm_grasland = ton_dm_uitgereden - ton_dm_bouwland)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ton_dm_maisland = ifelse(opp_mais > 0, ifelse(mais_dmst_m3 > 0, opp_mais * mais_dmst_m3, 0), 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ton_dm_akkerland = ifelse(opp_overig > 0, ifelse(akker_dmst_m3 > 0, opp_overig * akker_dmst_m3, 0), 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ton_dm_bouwland = ton_dm_maisland + ton_dm_akkerland)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(ton_dm_grasland = ton_dm_uitgereden - ton_dm_bouwland)
   
   
-  dataset_voerwinst %>% dplyr::mutate(kosten_gras_totaal = ton_dm_grasland * kosten_dm_gras + (graspr_kmst_kgn * kosten_kmst_n + graspr_kmst_kgp2o5 * kosten_kmst_p + kosten_overig_gras) * oppgras)
-  dataset_voerwinst %>% dplyr::mutate(kosten_gras_totaal_kg_ds = kosten_gras_totaal / opb_gras_totaal_ds)
-  dataset_voerwinst %>% dplyr::mutate(kosten_mais_totaal = ton_dm_maisland * kosten_dm_mais + (mais_kmst_kgn * kosten_kmst_n + mais_kmst_kgp2o5 * kosten_kmst_p + kosten_overig_mais) * opp_mais)
-  dataset_voerwinst %>% dplyr::mutate(kosten_mais_totaal_kg_ds = kosten_mais_totaal / opb_mais_totaal_ds)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_gras_totaal = ton_dm_grasland * kosten_dm_gras + (graspr_kmst_kgn * kosten_kmst_n + graspr_kmst_kgp2o5 * kosten_kmst_p + kosten_overig_gras) * oppgras)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_gras_totaal_kg_ds = kosten_gras_totaal / opb_gras_totaal_ds)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_mais_totaal = ton_dm_maisland * kosten_dm_bouw + (mais_kmst_kgn * kosten_kmst_n + mais_kmst_kgp2o5 * kosten_kmst_p + kosten_overig_mais) * opp_mais)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_mais_totaal_kg_ds = kosten_mais_totaal / opb_mais_totaal_ds)
   
-  dataset_voerwinst %>% dplyr::mutate(grasproductie_graskuil = opb_gras_totaal_ds - gr_verbruik)
-  dataset_voerwinst %>% dplyr::mutate(mutatie_graskuil = grasproductie_graskuil - gk_verbruik_kuil)
-  dataset_voerwinst %>% dplyr::mutate(mutatie_maiskuil = opb_mais_totaal_ds - sm_verbruik_kuil)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(grasproductie_graskuil = opb_gras_totaal_ds - gr_verbruik)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(mutatie_graskuil = grasproductie_graskuil - gk_verbruik_kuil)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(mutatie_maiskuil = opb_mais_totaal_ds - sm_verbruik_kuil)
   
   
   #Kosten grasproducten in rantsoen
-  dataset_voerwinst %>% dplyr::mutate(kosten_eigen_graskuil = ifelse(mutatie_graskuil > 0, (grasproductie_graskuil - mutatie_graskuil) * kosten_gras_totaal_kg_ds * kosten_oogst_graskuil, grasproductie_graskuil * kosten_gras_totaal_kg_ds * kosten_oogst_graskuil ))
-  dataset_voerwinst %>% dplyr::mutate(kosten_aankoop_graskuil = ifelse(mutatie_graskuil < 0, abs(mutatie_graskuil) * prijs_aankoop_graskuil, 0))
-  dataset_voerwinst %>% dplyr::mutate(kosten_vers_gras = ifelse(gr_verbruik_kuil > 0, gr_verbruik_kuil * kosten_gras_totaal_kg_ds, 0))
-  dataset_voerwinst %>% dplyr::mutate(kosten_gras_rantsoen = kosten_eigen_graskuil + kosten_aankoop_graskuil + kosten_vers_gras)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_eigen_graskuil = ifelse(mutatie_graskuil > 0, (grasproductie_graskuil - mutatie_graskuil) * kosten_gras_totaal_kg_ds * kosten_oogst_graskuil, grasproductie_graskuil * kosten_gras_totaal_kg_ds * kosten_oogst_graskuil ))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_aankoop_graskuil = ifelse(mutatie_graskuil < 0, abs(mutatie_graskuil) * prijs_aankoop_graskuil, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_vers_gras = ifelse(gr_verbruik_kuil > 0, gr_verbruik_kuil * kosten_gras_totaal_kg_ds, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_gras_rantsoen = kosten_eigen_graskuil + kosten_aankoop_graskuil + kosten_vers_gras)
   
-  dataset_voerwinst %>% dplyr::mutate(saldo_verkoop_overschot_gras = ifelse(mutatie_graskuil > 0, mutatie_graskuil * (prijs_verkoop_graskuil - (kosten_gras_totaal_kg_ds + kosten_oogst_graskuil)) , 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(saldo_verkoop_overschot_gras = ifelse(mutatie_graskuil > 0, mutatie_graskuil * (prijs_verkoop_graskuil - (kosten_gras_totaal_kg_ds + kosten_oogst_graskuil)) , 0))
 
   #Kosten maisproducten in rantsoen
-  dataset_voerwinst %>% dplyr::mutate(kosten_eigen_maiskuil = ifelse(mutatie_maiskuil > 0, (opb_mais_totaal_ds - mutatie_graskuil) * kosten_mais_totaal_kg_ds, opb_mais_totaal_ds * kosten_mais_totaal_kg_ds ))
-  dataset_voerwinst %>% dplyr::mutate(kosten_aankoop_maiskuil = ifelse(mutatie_graskuil < 0, abs(mutatie_graskuil) * prijs_aankoop_maiskuil, 0))
-  dataset_voerwinst %>% dplyr::mutate(kosten_mais_rantsoen = kosten_eigen_maiskuil + kosten_aankoop_maiskuil)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_eigen_maiskuil = ifelse(mutatie_maiskuil > 0, (opb_mais_totaal_ds - mutatie_graskuil) * kosten_mais_totaal_kg_ds, opb_mais_totaal_ds * kosten_mais_totaal_kg_ds ))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_aankoop_maiskuil = ifelse(mutatie_graskuil < 0, abs(mutatie_graskuil) * prijs_aankoop_maiskuil, 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_mais_rantsoen = kosten_eigen_maiskuil + kosten_aankoop_maiskuil)
   
-  dataset_voerwinst %>% dplyr::mutate(saldo_verkoop_overschot_mais = ifelse(mutatie_graskuil > 0, mutatie_graskuil * (prijs_verkoop_maiskuil - kosten_mais_totaal_kg_ds), 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(saldo_verkoop_overschot_mais = ifelse(mutatie_graskuil > 0, mutatie_graskuil * (prijs_verkoop_maiskuil - kosten_mais_totaal_kg_ds), 0))
   
-  dataset_voerwinst %>% dplyr::mutate(kosten_overig_ruwvoer = (ov_verbruik_voerhek * prijs_aankoop_overig_ruwvoer))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_overig_ruwvoer = (ov_verbruik_voerhek * prijs_aankoop_overig_ruwvoer))
   
   
   if(bijproducten_algemeen){
     
     #Kosten bijproducten
-    dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_ton_ds = ((ov_geh_vem * prijs_kvem_bijproduct + ov_geh_re * correctie_re_dve_bijproduct* prijs_dve_bijproduct)/100 * procent_voederwaarde_prijs_bijproduct ))
-    dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_totaal = (kosten_bijproducten_ton_ds * ov_verbruik_voerhek / 1000))
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_ton_ds = ((ov_geh_vem * prijs_kvem_bijproduct + ov_geh_re * correctie_re_dve_bijproduct* prijs_dve_bijproduct)/100 * procent_voederwaarde_prijs_bijproduct ))
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_totaal = (kosten_bijproducten_ton_ds * ov_verbruik_voerhek / 1000))
     
     #Kosten krachtvoer
-    dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil_kg_product = kv_verbruik_kuil / ds_gehalte_krachtvoer)
-    dataset_voerwinst %>% dplyr::mutate(kv_prijs_bedrijf = ((kv_geh_vem/1000 * prijs_kvem_krachtvoer) + (kv_geh_re * correctie_re_dve_krachtvoer / 1000 * prijs_dve_krachtvoer)) * correctiefactor_krachtvoer * procent_bedrijfsspecifiek_krachtvoer + norm_prijs_krachtvoer * (1-procent_bedrijfsspecifiek_krachtvoer) + toeslag_mineralen)
-    dataset_voerwinst %>% dplyr::mutate(kv_kosten_totaal = (kv_verbruik_kuil_kg_product * kv_prijs_bedrijf))
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil_kg_product = kv_verbruik_kuil / ds_gehalte_krachtvoer)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_prijs_bedrijf = ((kv_geh_vem/1000 * prijs_kvem_krachtvoer) + (kv_geh_re * correctie_re_dve_krachtvoer / 1000 * prijs_dve_krachtvoer)) * correctiefactor_krachtvoer * procent_bedrijfsspecifiek_krachtvoer + norm_prijs_krachtvoer * (1-procent_bedrijfsspecifiek_krachtvoer) + toeslag_mineralen)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_kosten_totaal = (kv_verbruik_kuil_kg_product * kv_prijs_bedrijf))
   
     #Kosten melkpoeder  
-    dataset_voerwinst %>% dplyr::mutate(mp_verbruik_kuil_kg_product = mp_verbruik_kuil / ds_gehalte_melkpoeder)
-    dataset_voerwinst %>% dplyr::mutate(mp_kosten_totaal = (mp_verbruik_kuil_kg_product * prijs_aankoop_melkpoeder))
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(mp_verbruik_kuil_kg_product = mp_verbruik_kuil / ds_gehalte_melkpoeder)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(mp_kosten_totaal = (mp_verbruik_kuil_kg_product * prijs_aankoop_melkpoeder))
+    
+  } else {
+    
+    dataset_xml =  XMLtoDataFrame(path_input_xml)
+    dataset_xml = dataset_xml %>% mutate(vem_categorie = ifelse(vem > 850, "hoog", "laag"))
+    
+    dataset_xml_samengevat = dataset_xml %>% group_by(kvk_nummer, jaartal, type, vem_categorie) %>% dplry::summarise(vem_gewogen = weighted.mean(vem, hoeveelheid))
     
   }
   
-  dataset_voerwinst %>% dplyr::mutate(kosten_rantsoen = kosten_gras_rantsoen + kosten_mais_rantsoen + kosten_bijproducten_totaal + kv_kosten_totaal + mp_kosten_totaal)
-  dataset_voerwinst %>% dplyr::mutate(kosten_rantsoen_100kgmelk = kosten_rantsoen / melk_bedr * 100)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_rantsoen = kosten_gras_rantsoen + kosten_mais_rantsoen + kosten_bijproducten_totaal + kv_kosten_totaal + mp_kosten_totaal)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_rantsoen_100kgmelk = kosten_rantsoen / melk_bedr * 100)
   
   #Berekening Voerwinst
-  dataset_voerwinst %>% dplyr::mutate(totaal_opbrensten = melkgeld + verkoop_dieren_waarde)
-  dataset_voerwinst %>% dplyr::mutate(totaal_kosten = kosten_rantsoen + aankoop_dieren_waarde)
-  dataset_voerwinst %>% dplyr::mutate(voerwinst_totaal = totaal_opbrengsten - totaal_kosten)
-  dataset_voerwinst %>% dplyr::mutate(voerwinst_ha = round(voerwinst_totaal/opp_totaal , 0))
-  dataset_voerwinst %>% dplyr::mutate(voerwinst_100kgmelk = round(voerwinst_totaal / melk_bedr * 100, 2))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(totaal_opbrengsten = melkgeld + verkoop_dieren_waarde)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(totaal_kosten = kosten_rantsoen + aankoop_dieren_waarde)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(voerwinst_totaal = totaal_opbrengsten - totaal_kosten)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(voerwinst_ha = round(voerwinst_totaal/opp_totaal , 0))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(voerwinst_100kgmelk = round(voerwinst_totaal / melk_bedr * 100, 2))
   
-  dataset_voerwinst %>% dplyr::mutate(saldo_ruwvoer_verkoop = saldo_verkoop_overschot_gras + saldo_verkoop_overschot_mais)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(saldo_ruwvoer_verkoop = saldo_verkoop_overschot_gras + saldo_verkoop_overschot_mais)
   
-  #      data = xmlParse(file = fileList[j])
-  #         tempData = xmlToDataFrame(nodes = getNodeSet(data, paste("//DUMPFILES/",sheet)))
-  #library(XML)
-
-
 
   
+
+
+  return(as.data.frame(dataset_voerwinst))
   
 }
+
+output = berekenVoerwinst(path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/dataset_Voerwinst", path_input_xml = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020", bijproducten_algemeen = TRUE)
+
+setwd("C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/resultaat_Voerwinst")
+write.xlsx((output), "data_voerwinst.xlsx", asTable = T, overwrite = T)

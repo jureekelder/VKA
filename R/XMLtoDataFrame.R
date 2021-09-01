@@ -39,9 +39,11 @@ XMLtoDataFrame <- function(path_xml_files){
     krachtvoer_running = NULL
     krachtvoer_found = FALSE
     
+    #Overigrvbp --> splitsen op basis van VEM 850. <
+    
     for(name in names(xml_df_vrd)){
       
-      if(str_detect(name, "Krachtvoer")){
+      if(any(str_detect(name, c("Krachtvoer", "Overigrvbp")))){
         
         krachtvoer_found = TRUE
         
@@ -53,6 +55,8 @@ XMLtoDataFrame <- function(path_xml_files){
         df_kv_transpose =t(df_kv[,1])
         
         colnames(df_kv_transpose) = names_df_kv
+        
+        df_kv_transpose$type = name
         
         if(is.null(krachtvoer_running)){
           krachtvoer_running = df_kv_transpose
@@ -81,10 +85,16 @@ XMLtoDataFrame <- function(path_xml_files){
     
   }
   
+  #Splitsen op basis van VEM 850 a 900
+  
+  #vem * hoeveelheid --> sommeren --> delen aantal kilos = gehalte totaal hoeveelheid kv
+  
   return(data_totaal_running)
   
 }
 
+path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel"
+data = XMLtoDataFrame(path_xml_files) 
 
 
 
