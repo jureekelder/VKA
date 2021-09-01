@@ -43,7 +43,7 @@ XMLtoDataFrame <- function(path_xml_files){
     
     for(name in names(xml_df_vrd)){
       
-      if(any(str_detect(name, c("Krachtvoer")))){
+      if(any(str_detect(name, c("Krachtvoer", "Overigrvbp")))){
         
         krachtvoer_found = TRUE
         
@@ -52,11 +52,11 @@ XMLtoDataFrame <- function(path_xml_files){
         df_kv = as.data.frame(df_kv)
         names_df_kv = df_kv[,2]
         
-        df_kv_transpose =t(df_kv[,1])
+        df_kv_transpose = as.data.frame(t(df_kv[,1]))
         
         colnames(df_kv_transpose) = names_df_kv
         
-        df_kv_transpose$type = name
+        df_kv_transpose$type = unlist(str_split(name, "\\."))[1]
         
         if(is.null(krachtvoer_running)){
           krachtvoer_running = df_kv_transpose
@@ -94,7 +94,7 @@ XMLtoDataFrame <- function(path_xml_files){
 }
 
 path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel"
-data = XMLtoDataFrame(path_xml_files) 
+data_xml = XMLtoDataFrame(path_xml_files) 
 
 
 
