@@ -13,8 +13,6 @@
 #path_to_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Database
 #output_path = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Figuren
 
-
-
 opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   #Algemene functies
@@ -22,6 +20,41 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     cat(paste(name, ": \n"))
     cat(paste(toString(quantity), "\n"))
     cat("\n")
+  }
+  
+  #Het laden van benodigde functies die ook op GIT staan.
+  library(devtools)
+  scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R",
+                        "https://raw.githubusercontent.com/jureekelder/VKA/main/R/toevoegenKengetallenKLW.R")
+  
+  
+  for(script in scripts_to_source){
+    source_url(script)
+  }
+  
+  
+  #Functie voor wegschrijven van tabellen
+  standard_template_path = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Figuren/template.xlsx"
+  write_to_excel <- function(df){
+    
+    kleur_vka_rood = rgb(167, 25, 48, maxColorValue = 255)
+    kleur_vka_groen = rgb(0, 102, 67, maxColorValue = 255)
+    
+    file_name = paste("Tabel_",deparse(substitute(df)),".xlsx", sep = "")
+    
+    wb = loadWorkbook(standard_template_path)
+    
+    boldHeader <- createStyle(textDecoration = 'bold', fontName = 'corbel', fontSize = 10, fgFill  = kleur_vka_rood, fontColour = "white" ) # Makes first row bold
+    boldYears <- createStyle(textDecoration = 'bold', fontName = 'calibri', fontSize = 10, fgFill = kleur_vka_groen, fontColour = "white" ) # Makes first row bold
+    
+    style_text = createStyle(fontSize = 10)
+    
+    addStyle(wb, sheet = 1, style = style_text, rows = 2:100, cols = 2:100, gridExpand = T)
+    addStyle(wb, sheet = 1, style = boldYears, rows = 2:100, cols = 1, gridExpand = F)
+    
+    writeData(wb, sheet = 1, x = df,  headerStyle = boldHeader)
+    saveWorkbook(wb, file_name, overwrite = T)
+    
   }
   
   #Laden libraries
@@ -35,18 +68,10 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   library(ggforce)
   
   
-  #Het laden van benodigde functies die ook op GIT staan.
-  library(devtools)
-  scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R")
-  
-  
-  for(script in scripts_to_source){
-    source_url(script)
-  }
-  
   #Inlezen van dataset
   if(file.exists(path_to_dataset)){
     dataset_VKX = getDataInFolder(path_to_dataset)
+    dataset_VKX = toevoegenKengetallenKLW(dataset_VKX)
   } else {
     stop("Path naar dataset bestaat niet!")
   }
@@ -74,16 +99,35 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   #DEEL 1 : BEDRIJFSONTWIKKELING
   
-  parameters_bedrijf = c("grondsoort",
-                         "nkoe",
-                         "biobedrijf",
-                         "melkperha",
-                         "fpcmperha",
-                         "jvper10mk",
-                         "kvperbedrijf",
-                         "kvper100kgmelk",
-                         "gve_melkvee",
-                         "nintensief") #Varkens, pluimvee)
+  dataset_VKX = dataset_VKX %>% mutate(bodem_type_zand = ifelse(grondsoort == "zand", 1, 0))
+  dataset_VKX = dataset_VKX %>% mutate(bodem_type_klei = ifelse(grondsoort == "klei", 1, 0))
+  
+  
+  parameters_bedrijf = matrix(ncol = 3, byrow = T, data = (c(
+                         "nkoe", 0, "Aantal melkkoeien [-]",
+                         "njongvee", 0, "Aantal jongvee [-]",
+                         "jvper10mk", 1, "Jongvee / 10 melkkoeien [-]",
+                         "melkprod", 0 , "Melkproductie bedrijf [-]",
+                         "melkpkoe", 0, "Melk / koe / jaar [kg]",
+                         "melkperha", 0, "Intensiteit [kg/ha]",
+                         "fpcmperha", 0, "Intensiteit [kg FPCM/ha]",
+                         "kvperbedrijf", 0, "Krachtvoerverbruik [kg]",
+                         "bodem_type_zand", 2, "Aandeel zand [%]",
+                         "bodem_type_klei", 2, "Aandeel klei [%]", #0 voor klei, 1 voor zand. Gemiddelde per jaar is dus aantal bedrijven (%).
+                         
+                         "kvper100kgmelk", 1, "Krachtvoerverbruik [kg/100 kg melk]"))) #Varkens, pluimvee)
+  
+  parameters_productie = matrix(ncol = 3, byrow = T, data = c(
+    
+    "melkpkoe", 0, "Melkproductie [kg/koe/jaar]",
+    "fpcmkoejaar", 0, "FPCM [kg/koe/jaar]",
+    "vet", 2, "Vetgehalte [%]",
+    "eiwit", 2, "Eiwitgehalte [%]",
+    "ureum", 1, "Ureumgehalte [mg/100 gr]",
+    "fosfor", 0, "Fosforgehalte [mg/100 gr]"
+    
+  ))
+  
   
   parameters_areaal = c("opp_totaal",
                        "oppgras",
@@ -100,12 +144,17 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                        "oppmais",
                        "oppoverig")
   
-  parameters_vee = c("efficientie_N",
-                     "efficientie_P",
-                     "voereff_melk",
-                     "voereff_fpcm",
-                     "zstvdagenNA",
-                     "zstvdagen"
+  parameters_vee = matrix(ncol = 3, byrow = T , data = c(
+                     "efficientie_N", 2, "Stikstof efficientie veestapel [%]",
+                     "efficientie_P", 2, "Fosfaat efficientie veestapel [%]",
+                     "voereff_melk", 1, "Voerefficiëntie [kg melk / kg ds]",
+                     "voereff_fpcm", 1, "Voerefficiëntie [kg fpcm / kg ds]",
+                     "urenweidenmelkkoeienNA", 0, "Beweiding weidebedrijven [uren]",
+                     "beweidenmelkkoeienboolean", 2, "Aandeel bedrijven beweiding [%]",
+                     "zstvdagenNA", 0, "Zomerstalvoedering [dagen]",
+                     "zstvdagenboolean", 2, "Aandeel bedrijven zomerstalvoedering [%]"
+  )
+
                      
   )
   
@@ -327,6 +376,88 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   data_KLW_VKX_Compleet = dataset_VKX
   
+  
+  #Tabel onderdeel algemeen
+  
+  #Functie om kolommen af te ronden op aantal decimalen
+  df_round_manual <- function(df, names_digits_matrix){
+    
+    #Itereer over alle kolommen in de dataset
+    for(i in 1:nrow(names_digits_matrix)){
+      
+      #Krijg kolomnaam en aantal digits.
+      col_name = names_digits_matrix[i,1]
+      col_digit = as.numeric(names_digits_matrix[i,2])
+      col_name_new = names_digits_matrix[i,3]
+      
+      #Als aantal digits niet NA is dan
+      if(!is.na(col_digit)){
+        df = df %>% dplyr::mutate( across(col_name, round, col_digit))
+      }
+      
+    }
+    
+    col_names_old = names_digits_matrix[,1]
+    col_names_new = names_digits_matrix[,3]
+    
+    df = df %>% dplyr::rename_at(vars(col_names_old), ~col_names_new)
+    
+    return(df)
+    
+  }
+  
+  #Functie om het gemiddelde te bereken voor sommige kolommen
+  bereken_gemiddelde_over_jaren <- function(df, names_digits_matrix){
+    
+    output = df %>% 
+      dplyr::select(c("jaartal",names_digits_matrix[,1])) %>%
+      dplyr::group_by(jaartal) %>%
+      dplyr::summarise_all(mean, na.rm = T)
+    
+    output_rounded = df_round_manual(output, names_digits_matrix)
+    
+    names_df = colnames(output_rounded)
+    if(any(str_detect(names_df, "Aandeel"))){
+      
+      for(name_df in names_df){
+        
+        if(str_detect(name_df, "Aandeel")){
+          output_rounded = output_rounded %>% dplyr::mutate(across(name_df, ~.x * 100))
+        }
+        
+      }
+      
+    }
+    
+    return(output_rounded)
+    
+  }
+  
+  
+  
+
+  dataset_VKX_gemiddeld_bedrijf = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_bedrijf)
+  dataset_VKX_gemiddeld_bedrijf = dataset_VKX_gemiddeld_bedrijf %>% dplyr::mutate(`Percentage bedrijven zand [%]` = 100 * `Percentage bedrijven zand [%]`)
+  write_to_excel(dataset_VKX_gemiddeld_bedrijf)
+  
+  dataset_VKX_gemiddeld_productie = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_productie)
+  write_to_excel(dataset_VKX_gemiddeld_productie)
+  
+  dataset_VKX_gemiddeld_vee = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_vee)
+  write_to_excel(dataset_VKX_gemiddeld_vee)
+  
+  
+  
+    
+  gg_color_hue <- function(n) {
+    hues = seq(15, 375, length = n + 1)
+    hcl(h = hues, l = 65, c = 100)[1:n]
+  }
+  
+  colorPalette = RColorBrewer::brewer.pal(9, "Set1") #gg_color_hue(4)
+  colorsGGplot = gg_color_hue(3)
+  options(scipen = 999)
+  
   #Grafieken
   parameters = c(
     "melkperha",
@@ -452,7 +583,7 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     group_by(jaartal) %>%
     dplyr::summarise_all(mean, na.rm = T)
   head(data_gem_re)
-  write.xlsx(data_gem_re, "re_gehalte_rantsoenen_gemiddeld.xlsx", T)
+  write.xlsx(data_gem_re, "re_gehalte_rantsoenen_gemiddeld.xlsx", asTable = T, overwrite = T)
   
   ymin = 8000
   ymax = 32000

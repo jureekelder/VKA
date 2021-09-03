@@ -70,7 +70,7 @@ toevoegenKengetallenKLW <- function(database_klw){
   data$urenweidenmelkkoeienperdag = ifelse(is.nan(data$urenweidenmelkkoeienperdag),0,data$urenweidenmelkkoeienperdag)
   data$urenweidenmelkkoeienperdagNA = ifelse(data$urenweidenmelkkoeienperdag < 0.1, 0, data$urenweidenmelkkoeienperdag)
   
-  data$beweidenmelkkoeienboolean = ifelse(is.na(data$urenweidenmelkkoeien), 0 ,1)
+  data$beweidenmelkkoeienboolean = ifelse(is.na(data$dagenweidenmelkkoeienNA), 0 ,1)
   
   #ZOMERSTALVOEREN
   data$zstvdagen = data$dgncombib + data$dgncombio + data$dgnzstvb + data$dgnzstvo
