@@ -127,6 +127,8 @@ XMLtoDataFrame <- function(path_xml_files){
   
   data_output = data_wider %>% select(kvk_nummer, jaartal, feedtype, vem_categorie, verbruik, verbruik_re, verbruik_vem)
   
+  data_output = pivot_wider(data_output, names_from = c("feedtype", "vem_categorie"), values_from = c("verbruik", "verbruik_re", "verbruik_vem"))
+  
   return(data_output)
   
 }
