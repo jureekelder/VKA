@@ -19,7 +19,7 @@
 #path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/dataset_Voerwinst"
 
 
-berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_algemeen = TRUE){
+berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_algemeen = FALSE){
   
   if(!bijproducten_algemeen){
     if(is.null(path_input_xml)){
@@ -120,7 +120,9 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
 
   ds_gehalte_krachtvoer = 0.897
   ds_gehalte_melkpoeder = 0.963
+  ds_gehalte_overig_ruwvoer = 0.90
   
+  prijs_overig_ruwvoer_ds = 130/1000
   
   
   #Kolommen die we nodig hebben
@@ -208,7 +210,7 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
   
 
   
-  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(melkprijs = bereken_melkprijs(
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::rowwise() %>% dplyr::mutate(melkprijs = bereken_melkprijs(
     procent_vet = melk_vet,
     procent_eiwit = melk_eiwit,
     prijs_vet = prijs_vet,
@@ -364,15 +366,27 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
     
     dataset_xml = dataset_xml %>% dplyr::mutate_if(is_all_numeric, as.numeric)
     
-    dataset_xml = dataset_xml %>% mutate(vem_categorie = ifelse(vem > 850, "hoog", "laag"))
+    #Samenvoegen met grote dataset:
+    dataset_voerwinst = inner_join(dataset_voerwinst, dataset_xml, by = c("jaartal", "kvk_nummer"))
     
-
     
-    print(str(dataset_xml))
+    #Hoe zit het met ds (zijn de gehalten uit input XML in ds of kg product?)
     
-    dataset_xml_samengevat = dataset_xml %>% group_by(kvk_nummer, jaartal, type, vem_categorie) %>% dplyr::summarise(vem_gewogen = weighted.mean(vem, hoev))
+    #HOOG VEM BIJPRODUCTEN
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_hoog_vem_totaal = verbruik_Overigrvbp_hoog * (verbruik_re_Overigrvbp_hoog * correctie_re_dve_bijproduct * prijs_dve_bijproduct * procent_voederwaarde_prijs_bijproduct))
+    #LAAG VEM BIJPRODUCTEN
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_laag_vem_totaal = verbruik_Overigrvbp_laag * ds_gehalte_overig_ruwvoer * prijs_overig_ruwvoer_ds)
     
-    test = 1
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_totaal = kosten_bijproducten_hoog_vem_totaal + kosten_bijproducten_laag_vem_totaal )
+    
+    #HOOG VEM KRACHTVOER
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_hoog_vem_totaal = verbruik_Krachtvoer_hoog * (verbruik_re_Krachtvoer_hoog * correctie_re_dve_krachtvoer * prijs_dve_krachtvoer))
+    #LAAG VEM KRACHTVOER --> MINERALEN
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_laag_vem_totaal = 0) #verbruik_Krachtvoer_laag * ds_gehalte_ * prijs_overig_ruwvoer_ds)
+    
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_kosten_totaal = kosten_krachtvoer_hoog_vem_totaal + kosten_krachtvoer_laag_vem_totaal )
+    
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(mp_kosten_totaal = 0 )
     
   }
   
@@ -388,13 +402,11 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
   
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(saldo_ruwvoer_verkoop = saldo_verkoop_overschot_gras + saldo_verkoop_overschot_mais)
   
-
-
   return(as.data.frame(dataset_voerwinst))
   
 }
 
-output = berekenVoerwinst(path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/dataset_Voerwinst", path_input_xml = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel", bijproducten_algemeen = FALSE)
+output = berekenVoerwinst(path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/Dataset_VKA_2018_2020", path_input_xml = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel", bijproducten_algemeen = FALSE)
 
 setwd("C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/resultaat_Voerwinst")
 write.xlsx((output), "data_voerwinst.xlsx", asTable = T, overwrite = T)
