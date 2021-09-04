@@ -1,6 +1,6 @@
 #Jur Eekelder; 31-08-2021
 #jur.eekelder@demarke.eu
-#Script voor het uitlezen van input XML bestanden van de KLW ten behoeve van VoerwinstMonitor om krachtvoeders en bijproducten uit input XML te halen.
+#Script voor het uitlezen van input XML bestanden van de KLW ten behoeve van VoerwinstMonitor om krachtvoeders en bijproducten uit input XML te halen!
 
 #INPUTS
 #path_xml_files --> string met path naar mappen met input XML files vanuit KLW.
