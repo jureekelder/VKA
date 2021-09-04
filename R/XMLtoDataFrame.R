@@ -132,7 +132,7 @@ XMLtoDataFrame <- function(path_xml_files){
 }
 
 #path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel"
-#data_xml = XMLtoDataFrame(path_xml_files) 
+#data_xml_test = XMLtoDataFrame(path_xml_files) 
 
 
 
