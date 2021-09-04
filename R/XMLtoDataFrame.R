@@ -1,6 +1,6 @@
 #Jur Eekelder; 31-08-2021
 #jur.eekelder@demarke.eu
-#Script voor het uitlezen van input XML bestanden van de KLW.
+#Script voor het uitlezen van input XML bestanden van de KLW ten behoeve van VoerwinstMonitor om krachtvoeders en bijproducten uit input XML te halen.
 
 #INPUTS
 #path_xml_files --> string met path naar mappen met input XML files vanuit KLW.
@@ -20,6 +20,7 @@ XMLtoDataFrame <- function(path_xml_files){
   data_totaal_running = NULL
   
   counter = 0
+  feed_type_counter = 0
   for(file in files){
     
     counter = counter + 1
@@ -33,68 +34,106 @@ XMLtoDataFrame <- function(path_xml_files){
     jaartal = pull(xml_df_algemeen %>% dplyr::select(jaartal))
     kvk_nummer = pull(xml_df_algemeen %>% dplyr::select(kvk_nummer))
     
+    print(file)
+    print(kvk_nummer)
+    
     #Verkrijgen van Aanleg sectie uit XML. # VRDAANLEG + VRDBEGIN - VRDEIND = VERBRUIK
-    xml_df_vrd = tibble::as_tibble(xml_file) %>% tidyr::unnest_longer(KW007_Input) %>% dplyr::filter(KW007_Input_id == "VRDAANLEG") %>% tidyr::unnest_wider(KW007_Input)
-    
-    krachtvoer_running = NULL
-    krachtvoer_found = FALSE
-    
-    #Overigrvbp --> splitsen op basis van VEM 850. <
-    
-    for(name in names(xml_df_vrd)){
+    nested_xmls = c("VRDAANLEG", "VRDBEGIN", "VRDEIND")
+    for(nest in nested_xmls){
       
-      if(any(str_detect(name, c("Krachtvoer", "Overigrvbp")))){
+      xml_df_vrd = tibble::as_tibble(xml_file) %>% tidyr::unnest_longer(KW007_Input) %>% dplyr::filter(KW007_Input_id == nest) %>% tidyr::unnest_wider(KW007_Input)
+      
+      krachtvoer_running = NULL
+      krachtvoer_found = FALSE
+      
+      #Overigrvbp --> splitsen op basis van VEM 850. <
+      
+      for(name in names(xml_df_vrd)){
         
-        krachtvoer_found = TRUE
+        if(any(str_detect(name, c("Krachtvoer", "Overigrvbp")))){
+          
+          krachtvoer_found = TRUE
+          
+          feed_type_counter = feed_type_counter + 1
+          
+          df_kv = xml_df_vrd %>% dplyr::select(name) %>% tidyr::unnest_longer(name) %>% tidyr::unnest(cols=names(.)) %>% tidyr::unnest(cols=names(.))
+          
+          df_kv = as.data.frame(df_kv)
+          names_df_kv = df_kv[,2]
+          
+          df_kv_transpose = as.data.frame(t(df_kv[,1]))
+          
+          colnames(df_kv_transpose) = names_df_kv
+          
+          df_kv_transpose$jaartal = jaartal
+          df_kv_transpose$kvk_nummer = kvk_nummer
+          
+          df_kv_transpose$feedtype = unlist(str_split(name, "\\."))[1]
+          df_kv_transpose$objecttype = nest
+          df_kv_transpose$ID = feed_type_counter
+          
+          if(is.null(krachtvoer_running)){
+            krachtvoer_running = df_kv_transpose
+          } else {
+            krachtvoer_running = merge(krachtvoer_running, df_kv_transpose, all = T)
+          }
+        }
         
-        df_kv = xml_df_vrd %>% dplyr::select(name) %>% tidyr::unnest_longer(name) %>% tidyr::unnest(cols=names(.)) %>% tidyr::unnest(cols=names(.))
+      }
+      
+      #Als er nieuwe data is:
+      if(krachtvoer_found){
         
-        df_kv = as.data.frame(df_kv)
-        names_df_kv = df_kv[,2]
-        
-        df_kv_transpose = as.data.frame(t(df_kv[,1]))
-        
-        colnames(df_kv_transpose) = names_df_kv
-        
-        df_kv_transpose$type = unlist(str_split(name, "\\."))[1]
-        
-        if(is.null(krachtvoer_running)){
-          krachtvoer_running = df_kv_transpose
+
+        if(is.null(data_totaal_running)){
+          data_totaal_running = krachtvoer_running
         } else {
-          krachtvoer_running = merge(krachtvoer_running, df_kv_transpose, all = T)
+          data_totaal_running = merge(data_totaal_running, krachtvoer_running, all = T)
+          
         }
       }
-      
     }
     
-    #Als er nieuwe data is:
-    if(krachtvoer_found){
-      
-      #Toevoegen van KVK nummer en jaartal aan de data
-      krachtvoer_running$kvk_nummer = kvk_nummer
-      krachtvoer_running$jaartal = jaartal
-      
-      
-      if(is.null(data_totaal_running)){
-        data_totaal_running = krachtvoer_running
-      } else {
-        data_totaal_running = merge(data_totaal_running, krachtvoer_running, all = T)
-        
-      }
-    }
     
   }
   
+  
+  #Zorg dat numerieke kolommen als numeriek worden opgeslagen!
+  is_all_numeric <- function(x) {
+    !any(is.na(suppressWarnings(as.numeric(na.omit(
+      x
+    ))))) & is.character(x)
+  }
+  
+  
+  dataset = data_totaal_running
+  
+  dataset = dataset %>% dplyr::mutate_if(is_all_numeric, as.numeric)
+  
   #Splitsen op basis van VEM 850 a 900
+  dataset = dataset %>% dplyr::mutate(vem_categorie = ifelse(vem > 850, "hoog", "laag"))
   
-  #vem * hoeveelheid --> sommeren --> delen aantal kilos = gehalte totaal hoeveelheid kv
+  dataset_xml_samengevat = dataset %>% dplyr::group_by(kvk_nummer, jaartal, feedtype, objecttype, vem_categorie) %>% dplyr::summarise(vem_gewogen = weighted.mean(vem, hoev), re_gewogen = weighted.mean(re, hoev), sum_product = sum(hoev, na.rm = T))
   
-  return(data_totaal_running)
+  data_wider = pivot_wider(dataset_xml_samengevat, names_from = objecttype, values_from = c("vem_gewogen", "re_gewogen", "sum_product"), values_fill = 0)
+  
+  #Wat was het verbruik van het product --> BEGIN + AANLEG - EIND. ALs < 0 dan is eindvoorraad groter dan BEGIN + AANLEG, dat is niet reeel!
+  data_wider = data_wider %>% dplyr::mutate(verbruik_test = sum_product_VRDAANLEG + sum_product_VRDBEGIN - sum_product_VRDEIND) %>% dplyr::mutate(verbruik = ifelse(verbruik_test < 0, (sum_product_VRDAANLEG + sum_product_VRDBEGIN), verbruik_test))
+  data_wider = data_wider %>% dplyr::mutate(verbruik_aanleg = verbruik - sum_product_VRDBEGIN)
+  
+  #LET OP, gewogen gemiddelde wordt nu per rij berekend!
+  data_wider = data_wider %>% dplyr::rowwise() %>% dplyr::mutate(verbruik_re = sum(verbruik_aanleg * re_gewogen_VRDAANLEG, sum_product_VRDBEGIN * re_gewogen_VRDBEGIN) / verbruik)
+  data_wider = data_wider %>% dplyr::rowwise() %>% dplyr::mutate(verbruik_vem = sum(verbruik_aanleg * vem_gewogen_VRDAANLEG, sum_product_VRDBEGIN * vem_gewogen_VRDBEGIN) / verbruik)
+  
+  data_output = data_wider %>% select(kvk_nummer, jaartal, feedtype, vem_categorie, verbruik, verbruik_re, verbruik_vem)
+  
+  return(data_output)
   
 }
 
-path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel"
-data_xml = XMLtoDataFrame(path_xml_files) 
+#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel"
+#data_xml = XMLtoDataFrame(path_xml_files) 
+
 
 
 
