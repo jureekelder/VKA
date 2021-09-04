@@ -25,10 +25,6 @@ XMLtoDataFrame <- function(path_xml_files){
     
     counter = counter + 1
     
-    if(counter > 15){
-      next
-    }
-    
     print(round( counter / length(files) * 100, 2))
     
     xml_file = as_list(read_xml(file))
