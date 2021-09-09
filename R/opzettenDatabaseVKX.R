@@ -621,7 +621,7 @@ names_df = make.unique(colnames(data_KLW_VKX_Compleet),sep = "_")
 colnames(data_KLW_VKX_Compleet) = names_df
 write.xlsx(
   data_KLW_VKX_Compleet,
-  paste("dataset_VKA_", min_jaartal, "_", max_jaartal, ".xlsx", sep = ""),
+  paste("dataset_",type,"_", min_jaartal, "_", max_jaartal, ".xlsx", sep = ""),
   asTable = F, overwrite = T
 )
 }
