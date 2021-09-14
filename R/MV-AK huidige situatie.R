@@ -1,10 +1,15 @@
+#Rianne van Binsbergen; 14-09-2021
+#rianne.vanbinsbergen@demarke.eu
+#Script voor het maken van figuren en tabellen tbv Pilot samenwerking melkvee-akkerbouw in De Achterhoek 
+
 setwd('C:/Users/RiannevanBinsbergen/OneDrive - Cooperatie De Marke U.A/Documenten/Samenwerking MV-AK/Huidige situatie')
 
-##### Data inlezen #####
+##### CBS data inlezen #####
 regios <- read.csv('Gebieden_in_Nederland_2019_10082021_130901.csv',sep=";",header=F,skip=5)
 colnames(regios)<-c('gem','LB_code','LB_naam','LG_code','LG_naam','LD_code','LD_naam','PV_code','PV_naam')
 
 landbouwdata_cbs <- read.csv('Landbouw__gemeente_10082021_142626.csv',sep=";")
+colnames(landbouwdata_cbs)[1] <- "Perioden"
 
 # Selecteren Achterhoekse gemeenten
 gem_achterhoek <- regios$gem[regios$LB_code=='LB2508']
@@ -12,20 +17,20 @@ variabelen_opp <- colnames(landbouwdata_cbs)[grepl("Oppervlakte",colnames(landbo
 variabelen_aantal <- colnames(landbouwdata_cbs)[grepl("Aantal",colnames(landbouwdata_cbs))]
 
 # Subset met informatie over veehouderij en akkerbouw bedrijven in de Achterhoek
-landbouwdata_subset <- landbouwdata_cbs[landbouwdata_cbs$Regio.s %in% c("Nederland","Achterhoek (LB)",gem_achterhoek),
-                                        c("?..Perioden", "Regio.s",variabelen_aantal,variabelen_opp)]
+landbouwdata_cbs <- landbouwdata_cbs[landbouwdata_cbs$Regio.s %in% c("Nederland","Achterhoek (LB)",gem_achterhoek),
+                                        c("Perioden", "Regio.s",variabelen_aantal,variabelen_opp)]
 ##### Adjust dataset #####
 # opp. in ha
-landbouwdata_subset[,colnames(landbouwdata_subset)%in%variabelen_opp] <- 
-  landbouwdata_subset[,colnames(landbouwdata_subset)%in%variabelen_opp]/100
+landbouwdata_cbs[,colnames(landbouwdata_cbs)%in%variabelen_opp] <- 
+  landbouwdata_cbs[,colnames(landbouwdata_cbs)%in%variabelen_opp]/100
 
 # nieuwe variabelen
-landbouwdata_subset$Akkerbouw.Oppervlakte.are <- landbouwdata_subset$Akkerbouw.Oppervlakte.Akkerbouwgroenten..are. +
-  (landbouwdata_subset$Tuinbouw.onder.glas.Oppervlakte.Fruit.onder.glas..m2./100) +
-  (landbouwdata_subset$Tuinbouw.onder.glas.Oppervlakte.Glasgroenten..m2./100) +
-  (landbouwdata_subset$Tuinbouw.overig.Oppervlakte..hoeveelheid.Paddenstoelenteelt.Champignons..m2./100) +
-  landbouwdata_subset$Tuinbouw.open.grond.Oppervlakte.Bloembollen.en..knollen..are. + 
-  landbouwdata_subset$Tuinbouw.open.grond.Oppervlakte.Tuinbouwgroenten..are.
+landbouwdata_cbs$Akkerbouw.Oppervlakte.are <- landbouwdata_cbs$Akkerbouw.Oppervlakte.Akkerbouwgroenten..are. +
+  (landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Fruit.onder.glas..m2./100) +
+  (landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Glasgroenten..m2./100) +
+  (landbouwdata_cbs$Tuinbouw.overig.Oppervlakte..hoeveelheid.Paddenstoelenteelt.Champignons..m2./100) +
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Bloembollen.en..knollen..are. + 
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Tuinbouwgroenten..are.
 
 variabelen_opp2 <- c("Grondgebruik.Oppervlakte.Cultuurgrond..are.","Akkerbouw.Oppervlakte.are",
                      "Akkerbouw.Oppervlakte.Granen..are.",
@@ -36,38 +41,304 @@ variabelen_opp2 <- c("Grondgebruik.Oppervlakte.Cultuurgrond..are.","Akkerbouw.Op
 
 ##### Check data #####
 # Check of som van aantal bedrijven in de gemeenten = totaal aantal bedrijven in de achterhoek
-sum(landbouwdata_subset[landbouwdata_subset$?..Perioden == 2020 & 
-                          landbouwdata_subset$Regio.s %in% gem_achterhoek,3])
+sum(landbouwdata_cbs[landbouwdata_cbs$Perioden == 2020 & 
+                          landbouwdata_cbs$Regio.s %in% gem_achterhoek,3])
 
-landbouwdata_subset[landbouwdata_subset$?..Perioden == 2020 & 
-                      landbouwdata_subset$Regio.s == "Achterhoek (LB)",3]
+landbouwdata_cbs[landbouwdata_cbs$Perioden == 2020 & 
+                      landbouwdata_cbs$Regio.s == "Achterhoek (LB)",3]
 
 # Check som van opp
-sum(landbouwdata_subset[landbouwdata_subset$?..Perioden == 2020 & 
-                          landbouwdata_subset$Regio.s == "Nederland",
-                        colnames(landbouwdata_subset) %in% variabelen_opp2[2:7]])
+sum(landbouwdata_cbs[landbouwdata_cbs$Perioden == 2020 & 
+                          landbouwdata_cbs$Regio.s == "Nederland",
+                        colnames(landbouwdata_cbs) %in% variabelen_opp2[2:7]])
 
-sum(landbouwdata_subset[landbouwdata_subset$?..Perioden == 2020 & 
-                          landbouwdata_subset$Regio.s == "Nederland",
-                        colnames(landbouwdata_subset) %in% variabelen_opp2[1]])
+sum(landbouwdata_cbs[landbouwdata_cbs$Perioden == 2020 & 
+                          landbouwdata_cbs$Regio.s == "Nederland",
+                        colnames(landbouwdata_cbs) %in% variabelen_opp2[1]])
 
-##### Write data #####
-# CSV file met aantal data
-write.csv(t(landbouwdata_subset[landbouwdata_subset$Regio.s %in% c("Nederland","Achterhoek (LB)"),
-                                c("?..Perioden", "Regio.s",variabelen_aantal)]),
-          file="Landbouw_gemeente_subset_aantalAchterhoek.csv")
+#### Excel file met aantal data ####
+#load libraries
+#install.packages("writexl")
+library(writexl)
 
-# CSV file met opp. data
-write.csv(t(landbouwdata_subset[landbouwdata_subset$Regio.s %in% c("Nederland","Achterhoek (LB)"),
-                                c("?..Perioden", "Regio.s",variabelen_opp2)]),
-          file="Landbouw_gemeente_subset_oppAchterhoek.csv")
+tabel_aantal <- data.frame(matrix(NA,nrow=14,ncol=5))
+colnames(tabel_aantal) <- c("Grondgebruik","n_NL","perc_NL","n_8rhk","perc_8rhk")
+tabel_aantal$Grondgebruik <- c("Akkerbouw en tuinbouw",           #1
+                               "Akkerbouwgroenten",               #2
+                               "Bloembollen en -knollen",         #3
+                               "Tuinbouwgroenten",                #4
+                               "Fruit onder glas",                #5
+                               "Glasgroenten",                    #6
+                               "Overige - champignons",           #7
+                               "Granen",                          #8
+                               "Grasland en groenvoedergewassen", #9
+                               "Blijvend grasland",               #10
+                               "Natuurlijk grasland",             #11
+                               "Tijdelijk grasland",              #12
+                               "Groenvoedergewassen",             #13
+                               "Totaal")                          #14
+#Nederland
+tabel_aantal$n_NL[2] <- 
+  landbouwdata_cbs$Akkerbouw.Aantal.bedrijven.Akkerbouwgroenten..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[3] <- 
+  landbouwdata_cbs$Tuinbouw.open.grond.Aantal.bedrijven.Bloembollen.en..knollen..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[4] <- 
+  landbouwdata_cbs$Tuinbouw.open.grond.Aantal.bedrijven.Tuinbouwgroenten..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[5] <- 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Aantal.bedrijven.Fruit.onder.glas..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[6] <- 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Aantal.bedrijven.Glasgroenten..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[7] <- 
+  landbouwdata_cbs$Tuinbouw.overig.Aantal.bedrijven.Paddenstoelenteelt.Champignons..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                              landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[8] <- 
+  landbouwdata_cbs$Akkerbouw.Aantal.bedrijven.Granen..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                        landbouwdata_cbs$Perioden == 2020]
 
+tabel_aantal$n_NL[10] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Blijvend.grasland..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                          landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[11] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Natuurlijk.grasland..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                            landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[12] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Tijdelijk.grasland..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[13] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Groenvoedergewassen..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+
+tabel_aantal$n_NL[14] <- 
+  landbouwdata_cbs$Grondgebruik.Aantal.bedrijven.Cultuurgrond..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+#Achterhoek
+tabel_aantal$n_8rhk[2] <- 
+  landbouwdata_cbs$Akkerbouw.Aantal.bedrijven.Akkerbouwgroenten..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[3] <- 
+  landbouwdata_cbs$Tuinbouw.open.grond.Aantal.bedrijven.Bloembollen.en..knollen..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[4] <- 
+  landbouwdata_cbs$Tuinbouw.open.grond.Aantal.bedrijven.Tuinbouwgroenten..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[5] <- 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Aantal.bedrijven.Fruit.onder.glas..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[6] <- 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Aantal.bedrijven.Glasgroenten..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[7] <- 
+  landbouwdata_cbs$Tuinbouw.overig.Aantal.bedrijven.Paddenstoelenteelt.Champignons..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                              landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[8] <- 
+  landbouwdata_cbs$Akkerbouw.Aantal.bedrijven.Granen..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                landbouwdata_cbs$Perioden == 2020]
+
+tabel_aantal$n_8rhk[10] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Blijvend.grasland..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                          landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[11] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Natuurlijk.grasland..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                            landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[12] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Tijdelijk.grasland..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[13] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Groenvoedergewassen..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+
+tabel_aantal$n_8rhk[14] <- 
+  landbouwdata_cbs$Grondgebruik.Aantal.bedrijven.Cultuurgrond..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                         landbouwdata_cbs$Perioden == 2020]
+
+#Percentages
+for (icol in c(3,5)){
+  for (irow in c(2:8,10:13)){
+    tabel_aantal[irow,icol] <- round(tabel_aantal[irow,icol-1]/tabel_aantal[14,icol-1] * 100,1)
+  }
+}
+
+#Schrijven naar Excel
+write_xlsx(tabel_aantal,"Aantal_bedrijven_grondgebruik_2020.xlsx")
+
+#### Excel file met opp data ####
+#load libraries
+#install.packages("writexl")
+library(writexl)
+
+tabel_opp <- data.frame(matrix(NA,nrow=8,ncol=5))
+colnames(tabel_opp) <- c("Grondgebruik","opp_NL","perc_NL","opp_8rhk","perc_8rhk")
+tabel_opp$Grondgebruik <- c("Akkerbouw en tuinbouw (excl. granen)", #1
+                            "Granen",                               #2
+                            "Blijvend grasland",                    #3
+                            "Natuurlijk grasland",                  #4
+                            "Tijdelijk grasland",                   #5
+                            "Groenvoedergewassen",                  #6
+                            "Overige",                              #7
+                            "Totaal")                               #8
+#Nederland
+tabel_opp$opp_NL[1] <- sum(
+  landbouwdata_cbs$Akkerbouw.Oppervlakte.Akkerbouwgroenten..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                           landbouwdata_cbs$Perioden == 2020], 
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Bloembollen.en..knollen..are.[landbouwdata_cbs$Regio.s == "Nederland" &
+                                                                                   landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Tuinbouwgroenten..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Fruit.onder.glas..m2.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020], 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Glasgroenten..m2..[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.overig.Aantal.bedrijven.Paddenstoelenteelt.Champignons..aantal.[landbouwdata_cbs$Regio.s == "Nederland" &
+                                                                                              landbouwdata_cbs$Perioden == 2020]
+)
+tabel_opp$opp_NL[2] <- 
+  landbouwdata_cbs$Akkerbouw.Oppervlakte.Granen..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                landbouwdata_cbs$Perioden == 2020]
+
+tabel_opp$opp_NL[3] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Blijvend.grasland..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                          landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_NL[4] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Natuurlijk.grasland..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                            landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_NL[5] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Tijdelijk.grasland..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_NL[6] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Groenvoedergewassen..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+
+tabel_opp$opp_NL[8] <- 
+  landbouwdata_cbs$Grondgebruik.Oppervlakte.Cultuurgrond..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                         landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_NL[7] <- tabel_opp$opp_NL[8] - sum(tabel_opp$opp_NL[1:6])
+
+
+#Achterhoek (LB)
+tabel_opp$opp_8rhk[1] <- sum(
+  landbouwdata_cbs$Akkerbouw.Oppervlakte.Akkerbouwgroenten..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                   landbouwdata_cbs$Perioden == 2020], 
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Bloembollen.en..knollen..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" &
+                                                                                   landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Tuinbouwgroenten..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                            landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Fruit.onder.glas..m2.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                           landbouwdata_cbs$Perioden == 2020], 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Glasgroenten..m2..[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                        landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.overig.Aantal.bedrijven.Paddenstoelenteelt.Champignons..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" &
+                                                                                              landbouwdata_cbs$Perioden == 2020]
+)
+tabel_opp$opp_8rhk[2] <- 
+  landbouwdata_cbs$Akkerbouw.Oppervlakte.Granen..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                        landbouwdata_cbs$Perioden == 2020]
+
+tabel_opp$opp_8rhk[3] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Blijvend.grasland..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                  landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_8rhk[4] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Natuurlijk.grasland..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_8rhk[5] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Tijdelijk.grasland..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_8rhk[6] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Groenvoedergewassen..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                           landbouwdata_cbs$Perioden == 2020]
+
+tabel_opp$opp_8rhk[8] <- 
+  landbouwdata_cbs$Grondgebruik.Oppervlakte.Cultuurgrond..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                 landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_8rhk[7] <- tabel_opp$opp_8rhk[8] - sum(tabel_opp$opp_8rhk[1:6])
+
+#Percentages
+for (icol in c(3,5)){
+  for (irow in 1:7){
+    tabel_opp[irow,icol] <- round(tabel_opp[irow,icol-1]/tabel_opp[8,icol-1] * 100,1)
+  }
+}
+
+#Afronden opp
+tabel_opp$opp_NL <- round(tabel_opp$opp_NL,0)
+tabel_opp$opp_8rhk <- round(tabel_opp$opp_8rhk,0)
+
+#Schrijven naar Excel
+write_xlsx(tabel_opp,"Opp_bedrijven_grondgebruik_2020.xlsx")
+
+#### Waffle chart ####
+library(ggplot2)
+#install.packages("waffle")
+library(waffle)
+
+kleuren_dm = c(rgb(111, 103, 11, maxColorValue = 255), #bruin
+               rgb(220, 206, 22, maxColorValue = 255), #geel (De Marke)
+               rgb(0, 117, 55, maxColorValue = 255), #groen
+               rgb(0, 75, 35, maxColorValue = 255), #donker groen (De Marke)
+               rgb(0, 183, 87, maxColorValue = 255), #licht groen
+               rgb(245, 239, 156, maxColorValue = 255), #licht geel
+               rgb(191, 191, 191, maxColorValue = 255)) #licht grijs
+
+tabel_opp
+
+percentages_NL <- c("Akkerbouw en tuinbouw (excl. granen)"=7.0, #1
+                    "Granen"=9.5,                               #2
+                    "Blijvend grasland"=38,                    #3
+                    "Natuurlijk grasland"=4.5,                  #4
+                    "Tijdelijk grasland"=11.5,                   #5
+                    "Groenvoedergewassen"=11.5,                  #6
+                    "Overige"=18.0                              #7
+                    )
+
+png("waffle_Nederland.png", width=16, height=16, units = "cm", res=200)
+waffle(percentages_NL*4,rows=20,size=0.5,colors = kleuren_dm,flip=T,
+       title = "Grondgebruik Nederland",legend_pos = "bottom")
+dev.off()
+
+percentages_8rhk <- c("Akkerbouw en tuinbouw (excl. granen)"=0.5, #1
+                    "Granen"=5.5,                               #2
+                    "Blijvend grasland"=50,                    #3
+                    "Natuurlijk grasland"=1.5,                  #4
+                    "Tijdelijk grasland"=17,                   #5
+                    "Groenvoedergewassen"=19.5,                  #6
+                    "Overige"=6                              #7
+)
+
+png("waffle_Achterhoek.png", width=16, height=16, units = "cm", res=200)
+waffle(percentages_8rhk*4,rows=20,size=0.5,colors = kleuren_dm,flip=T,
+       title = "Grondgebruik Achterhoek",legend_pos = "bottom")
+dev.off()
 
 
 #####
 rm(list=ls())
 
-##### Analyse VKA data ####
+
+#### Inlezen VKA data 20120-2020 ####
+#Het laden van benodigde functies die ook op GIT staan.
+library(devtools)
+scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/VKA/main/R/opzettenDatabaseVKX.R")
+
+for(script in scripts_to_source){
+  source_url(script)
+}
+
+#Eenmalig dataset voor 2020 aanmaken
+
+#path_ledendata = "C:/Users/RiannevanBinsbergen/Wageningen University & Research/Brinke, Fleur - dataset/Ledenlijst"
+#path_dumpfiles = "C:/Users/RiannevanBinsbergen/Wageningen University & Research/Brinke, Fleur - dataset/KLW_Database/DUMP_FILES"
+#output_folder = "C:/Users/RiannevanBinsbergen/Wageningen University & Research/Brinke, Fleur - dataset/KLW_Database"
+
+#opzettenDataBaseVKX(type = "VKA",jaartal_start = 2012,jaartal_eind = 2020,
+#                    path_ledendata = path_ledendata,
+#                    path_dumpfiles = path_dumpfiles,
+#                    output_folder = output_folder)
+
+#Daarna dataset inlezen met read_excel functie (readxl package)
 
 path_to_dataset = "C:/Users/RiannevanBinsbergen/Wageningen University & Research/Brinke, Fleur - VKA_data/KLW_Database/dataset_VKA_2013_2020.xlsx"
 output_path = "C:/Users/RiannevanBinsbergen/OneDrive - Cooperatie De Marke U.A/Documenten/Samenwerking MV-AK/VKA data"
