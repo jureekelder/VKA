@@ -11,8 +11,7 @@ for(script in scripts_to_source){
   source_url(script)
 }
 
-#### Inlezen VKA data ####
-
+#### Inlezen VKA data 2020 ####
 #Eenmalig dataset voor 2020 aanmaken
 
 #path_ledendata = "C:/Users/RiannevanBinsbergen/Wageningen University & Research/Brinke, Fleur - dataset/Ledenlijst"
@@ -27,12 +26,12 @@ for(script in scripts_to_source){
 #Daarna dataset inlezen met read_excel functie (readxl package)
 
 #### Notitie 1 ####
-
 # Functies
 subsetKPIdata <- function(path_to_dataset,output_folder,output_file){
   
   #load libraries
   library(readxl)
+  library(writexl)
   
   #Algemene functies
   outputToLog <- function(name, quantity) {
@@ -77,6 +76,8 @@ subsetKPIdata <- function(path_to_dataset,output_folder,output_file){
   dataset$kpi_blijgras <- dataset$dzh_blijgras_aand
   dataset$kpi_weidmk <- dataset$weidmk_dgn
   
+  dataset$melkperkoe <- dataset$melkprod / dataset$nkoe
+  
   #Selectie subdata
   columns = c(
     "jaartal",
@@ -88,6 +89,7 @@ subsetKPIdata <- function(path_to_dataset,output_folder,output_file){
     
     "melkprod",
     "melkperha",
+    "melkperkoe",
     "opp_totaal", #totaal opp bedrijf
     "opp_prgras", #opp productie grasland
     "opp_natuur", #opp natuurgrasland
@@ -135,62 +137,132 @@ subsetKPIdata <- function(path_to_dataset,output_folder,output_file){
   outputToLog("Aantal variables in subset", ncol(dataset))
   
   #Write to Excel
-  write.xlsx(dataset,output_file, asTable = F, overwrite = T)
+  write_xlsx(dataset,output_file)
   
   outputToLog("Subset geschreven in",output_file)
   
 }
 
-makehistograms <- function(dataset,varname,filename){
+makehistograms <- function(dataset,varname){
   
   #voor testen
   #dataset <- read_excel(output_file)
   #varname <- kpi_columns
-  #filename <- "histogrammen.pdf"
   #ivar = 1
-  
-  #install.packages("gridBase")
-  #install.packages("gridExtra")
-  library(grid)
-  library(gridBase)
-  library(gridExtra)
   
   kleuren_dm = c(rgb(0, 75, 35, maxColorValue = 255),rgb(220, 206, 22, maxColorValue = 255),
                  rgb(165, 165, 165, maxColorValue = 255),"black")
   ikleur = 0
   
-  pdf(filename, width=6, height=6, onefile=T, paper="a4")
   for (ivar in 1:length(varname)) {
     
-    if(ikleur < 4){
+    png(paste0("Histogram_",varname[ivar],".png"), width=12, height=12, units = "cm", res=200)
+    
+    if(ikleur < 3){
       ikleur = ikleur + 1
     }else{
       ikleur = 1
       }
     
-    layout(matrix(c(1,2),2,1,byrow=T),widths = c(1,1), heights = c(2,1))
-    
-    x <- matrix(unlist(dataset[,colnames(dataset) %in% varname[ivar]]),nrow=nrow(dataset),byrow=T)
-    table <- matrix(unlist(apply(x,2,summary)))
-    table <- data.frame(t(table))
-    table <- round(table,2)
-    colnames(table)<-c("Min","Q1-25%","Q2-50%","Gem","Q3-75%","Max")
-    table$Aantal <- nrow(dataset)
-    table$GeenNul <- colSums(x != 0)
-    
-    #plot histogram
+    x <- matrix(unlist(dataset[,varname[ivar]]))
     hist(x, plot = T, col = kleuren_dm[ikleur],xlab=varname[ivar],ylab="Aantal",main=varname[ivar])
     
-    #plot table
-    plot.new()
-    vps <- baseViewports()
-    pushViewport(vps$figure)
-    vp1 <-plotViewport()
-    grid.table(table)
-    popViewport()
+    dev.off()
+  }
+}
+
+correlationplots <- function(dataset,varname,filename){
+  
+  #voor testen
+  #dataset <- read_excel(output_file)
+  #varname <- kpi_columns
+  #filename <- "corrplots.pdf"
+  
+  kleuren_dm = c(rgb(0, 75, 35, maxColorValue = 255),rgb(220, 206, 22, maxColorValue = 255),
+                 rgb(165, 165, 165, maxColorValue = 255),"black")
+  
+  # Function to add histograms
+  panel.hist <- function(x) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(usr[1:2], 0, 1.5))
+    his <- hist(x, plot = FALSE)
+    breaks <- his$breaks
+    nB <- length(breaks)
+    y <- his$counts
+    y <- y/max(y)
+    rect(breaks[-nB], 0, breaks[-1], y, col = kleuren_dm[3])
+  }
+  
+  # Function to add correlation coefficients
+  # install.packages("RColorBrewer") 
+  # Needed to get color gradient
+  library(RColorBrewer)
+  
+  
+  cols = brewer.pal(11, "RdBu")   # goes from red to white to blue
+  pal = colorRampPalette(cols)
+  cor_colors = data.frame(correlation = seq(-1,1,0.01), 
+                          correlation_color = pal(201)[1:201])  # assigns a color for each r correlation value
+  cor_colors$correlation_color = as.character(cor_colors$correlation_color)
+  
+  panel.cor <- function(x, y, digits = 2, cex.cor) {
+    par(usr = c(0, 1, 0, 1))
+    u <- par('usr') 
+    names(u) <- c("xleft", "xright", "ybottom", "ytop")
+    r <- cor(x, y)
+
+    bgcolor = cor_colors[2+(-r+1)*100,2]    # converts correlation into a specific color
+    do.call(rect, c(col = bgcolor, as.list(u))) # colors the correlation box
+ 
+    text(0.5, 0.75, round(r,2),cex=1) # prints correlation coefficient
     
   }
+  
+    # Creating the scatter plot matrix
+  data <- dataset[,varname]
+  png(filename, width=16, height=16, units = "cm", res=200)
+  pairs(data,                       # Data frame of variables
+        lower.panel = points,
+        upper.panel = panel.cor,    # Disabling the upper panel
+#        diag.panel = panel.hist,    # Adding the histograms
+        labels = varname,  # Variable names
+        main = paste0("KPI's VKA data 2020 (n = ",nrow(dataset),")"),    # Title of the plot
+        row1attop = TRUE,         # If FALSE, changes the direction of the diagonal
+        gap = 0.1,                  # Distance between subplots
+        )
   dev.off()
+  
+}
+
+summarystats <- function(dataset,varname,output_file){
+  #voor testen
+  #dataset <- read_excel("VKAdata_notitie1.xlsx")
+  #varname <- c(alg_columns,kpi_columns)
+  #output_file <- "Summarystats.xlsx"
+  
+  #load libraries
+  #install.packages("writexl")
+  library(writexl)
+  
+  #Algemene functies
+  outputToLog <- function(name, quantity) {
+    cat(paste(name, ": \n"))
+    cat(paste(toString(quantity), "\n"))
+    cat("\n")
+  }
+  
+  #install.packages("psych")
+  library(psych)
+  sum.table <- describe(dataset)
+  sum.table$name <- row.names(sum.table)
+  
+  stats <- c("name","n","mean","sd","min","max")
+  
+  #Write to Excel
+  write_xlsx(sum.table[varname,stats],output_file)
+  
+  outputToLog("Summary statistics staan in",output_file)
 }
 
 # Selecteren subset KPI-k
@@ -200,10 +272,15 @@ output_file = "VKAdata_notitie1.xlsx"
 
 subsetKPIdata(path_to_dataset,output_folder,output_file)
 
-# Plots
+#Samenvatting data
+alg_columns <- c("melkprod","opp_totaal","melkperha")
 kpi_columns <- c("kpi_n","kpi_nh3","kpi_p","kpi_akkerbouw",
   "kpi_bkg","kpi_os","kpi_blijgras","kpi_weidmk")
 
-makehistograms(read_excel(output_file),kpi_columns,"histogrammen.pdf")
+summarystats(read_excel(output_file),c(alg_columns,kpi_columns),"Summarystats.xlsx")
 
-#scatterplots met correlaties tussen kpi's
+# Plots
+makehistograms(read_excel(output_file),c(alg_columns,kpi_columns))
+
+correlationplots(read_excel(output_file),c(alg_columns,kpi_columns),"Correlationplot_all.png")
+correlationplots(read_excel(output_file),kpi_columns,"Correlationplot_kpi.png")
