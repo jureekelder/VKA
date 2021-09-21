@@ -171,7 +171,7 @@ makehistograms <- function(dataset,varname){
   }
 }
 
-correlationplots <- function(dataset,varname,filename){
+correlationplots <- function(dataset,varname,filename,factorcolor){
   
   #voor testen
   #dataset <- read_excel(output_file)
@@ -259,8 +259,13 @@ summarystats <- function(dataset,varname,output_file){
   
   stats <- c("name","n","mean","sd","min","max")
   
+  #Statistics for variables not equal to 0
+  dataset[dataset == 0] <- NA
+  sum.table.ne0 <- describe(dataset)
+  sum.table.ne0$name <- paste0(row.names(sum.table.ne0),".ne0")
+  
   #Write to Excel
-  write_xlsx(sum.table[varname,stats],output_file)
+  write_xlsx(rbind(sum.table[varname,stats],sum.table.ne0[varname,stats]),output_file)
   
   outputToLog("Summary statistics staan in",output_file)
 }
