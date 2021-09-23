@@ -80,6 +80,7 @@ subsetKPIdata <- function(path_to_dataset,output_folder,output_file){
   
   #Selectie subdata
   columns = c(
+    "kvk_nummer",
     "jaartal",
     "nkoe",
     "nkalf", #<1 jaar
@@ -136,11 +137,67 @@ subsetKPIdata <- function(path_to_dataset,output_folder,output_file){
   outputToLog("Aantal observaties in subset", nrow(dataset))
   outputToLog("Aantal variables in subset", ncol(dataset))
   
-  #Write to Excel
-  write_xlsx(dataset,output_file)
+  #Write data to Excel (not kvk nummer)
+  write_xlsx(dataset[,2:length(columns)],output_file)
   
   outputToLog("Subset geschreven in",output_file)
   
+  #Write kvk nummers en opp. data tot Excel (voor merge met VALA)
+  write_xlsx(dataset[,c("kvk_nummer","nr","opp_totaal")],"kvk_opp_VKA.xlsx")
+  
+}
+
+mergeVKAVALA <- function(filename_dataset_VKA,filename_dataset_VALA,output_folder,output_file) {
+  
+  #load libraries
+  library(readxl)
+  library(writexl)
+  
+  #Algemene functies
+  outputToLog <- function(name, quantity) {
+    cat(paste(name, ": \n"))
+    cat(paste(toString(quantity), "\n"))
+    cat("\n")
+  }
+  
+  #Set working directory
+  if(file.exists(output_folder)){
+    setwd(output_folder)
+  } else {
+    warning("Path naar voor output bestaat niet!")
+  }
+  outputToLog("Working Directory is", getwd())
+  
+  
+  #Selecteren kvk-nr en opp_totaal voor bedrijven met klw 2020
+  if(file.exists(filename_dataset_VKA)){
+    datasetVKA <- read_excel(filename_dataset_VKA)
+  } else {
+    stop("Filename dataset VKA bestaat niet!")
+  }
+  
+  outputToLog("Aantal observaties in subset VKA", nrow(datasetVKA))
+  
+  #Inlezen kvk VALA
+  if(file.exists(filename_dataset_VALA)){
+    datasetVALA <- read_excel(filename_dataset_VALA)
+  } else {
+    stop("Filename dataset VALA bestaat niet!")
+  }
+  
+  outputToLog("Aantal observaties in volledige VALA dataset", nrow(datasetVALA))
+  
+  #Merge VKA en VALA
+  datasetVALA$kvkVALA <- as.numeric(datasetVALA$`KvK VALA`)
+  subsetVKA_VALA <- merge(datasetVKA,datasetVALA[,c("KvK VALA","kvkVALA")], 
+                          by.y = "kvkVALA", by.x = "kvk_nummer", all = F)
+  
+  outputToLog("Aantal observaties in merged dataset VKA en VALA", nrow(subsetVKA_VALA))
+  
+  #Write to Excel
+  write_xlsx(subsetVKA_VALA,output_file)
+  
+  outputToLog("Subset geschreven in",output_file)
 }
 
 makehistograms <- function(dataset,varname){
@@ -276,6 +333,13 @@ output_folder = "C:/Users/RiannevanBinsbergen/OneDrive - Cooperatie De Marke U.A
 output_file = "VKAdata_notitie1.xlsx"
 
 subsetKPIdata(path_to_dataset,output_folder,output_file)
+
+#### Eenmalig koppelen VKA data & VALA kvk ####
+mergeVKAVALA("kvk_opp_VKA.xlsx",
+             "KvK_VALA 2020.xlsx",
+             "C:/Users/RiannevanBinsbergen/OneDrive - Cooperatie De Marke U.A/Documenten/KPI-k gebiedspilot/Notitie1",
+             "VKA_VALA_KvK_opp.xlsx")
+
 
 #Samenvatting data
 alg_columns <- c("melkprod","opp_totaal","melkperha")
