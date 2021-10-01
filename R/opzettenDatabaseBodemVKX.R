@@ -10,6 +10,6 @@
 opzettenDatabaseBodemVKX <- function(path_to_database_VKX, path_to_database_bodem){
   
   
-  
+  a=1
   
 }
