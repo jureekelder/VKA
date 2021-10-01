@@ -1,10 +1,15 @@
+#Rianne van Binsbergen; 14-09-2021
+#rianne.vanbinsbergen@demarke.eu
+#Script voor het maken van figuren en tabellen tbv Pilot samenwerking melkvee-akkerbouw in De Achterhoek 
+
 setwd('C:/Users/RiannevanBinsbergen/OneDrive - Cooperatie De Marke U.A/Documenten/Samenwerking MV-AK/Huidige situatie')
 
-##### Data inlezen #####
+##### CBS data inlezen #####
 regios <- read.csv('Gebieden_in_Nederland_2019_10082021_130901.csv',sep=";",header=F,skip=5)
 colnames(regios)<-c('gem','LB_code','LB_naam','LG_code','LG_naam','LD_code','LD_naam','PV_code','PV_naam')
 
 landbouwdata_cbs <- read.csv('Landbouw__gemeente_10082021_142626.csv',sep=";")
+colnames(landbouwdata_cbs)[1] <- "Perioden"
 
 # Selecteren Achterhoekse gemeenten
 gem_achterhoek <- regios$gem[regios$LB_code=='LB2508']
@@ -12,20 +17,20 @@ variabelen_opp <- colnames(landbouwdata_cbs)[grepl("Oppervlakte",colnames(landbo
 variabelen_aantal <- colnames(landbouwdata_cbs)[grepl("Aantal",colnames(landbouwdata_cbs))]
 
 # Subset met informatie over veehouderij en akkerbouw bedrijven in de Achterhoek
-landbouwdata_subset <- landbouwdata_cbs[landbouwdata_cbs$Regio.s %in% c("Nederland","Achterhoek (LB)",gem_achterhoek),
-                                        c("?..Perioden", "Regio.s",variabelen_aantal,variabelen_opp)]
+landbouwdata_cbs <- landbouwdata_cbs[landbouwdata_cbs$Regio.s %in% c("Nederland","Achterhoek (LB)",gem_achterhoek),
+                                        c("Perioden", "Regio.s",variabelen_aantal,variabelen_opp)]
 ##### Adjust dataset #####
 # opp. in ha
-landbouwdata_subset[,colnames(landbouwdata_subset)%in%variabelen_opp] <- 
-  landbouwdata_subset[,colnames(landbouwdata_subset)%in%variabelen_opp]/100
+landbouwdata_cbs[,colnames(landbouwdata_cbs)%in%variabelen_opp] <- 
+  landbouwdata_cbs[,colnames(landbouwdata_cbs)%in%variabelen_opp]/100
 
 # nieuwe variabelen
-landbouwdata_subset$Akkerbouw.Oppervlakte.are <- landbouwdata_subset$Akkerbouw.Oppervlakte.Akkerbouwgroenten..are. +
-  (landbouwdata_subset$Tuinbouw.onder.glas.Oppervlakte.Fruit.onder.glas..m2./100) +
-  (landbouwdata_subset$Tuinbouw.onder.glas.Oppervlakte.Glasgroenten..m2./100) +
-  (landbouwdata_subset$Tuinbouw.overig.Oppervlakte..hoeveelheid.Paddenstoelenteelt.Champignons..m2./100) +
-  landbouwdata_subset$Tuinbouw.open.grond.Oppervlakte.Bloembollen.en..knollen..are. + 
-  landbouwdata_subset$Tuinbouw.open.grond.Oppervlakte.Tuinbouwgroenten..are.
+landbouwdata_cbs$Akkerbouw.Oppervlakte.are <- landbouwdata_cbs$Akkerbouw.Oppervlakte.Akkerbouwgroenten..are. +
+  (landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Fruit.onder.glas..m2./100) +
+  (landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Glasgroenten..m2./100) +
+  (landbouwdata_cbs$Tuinbouw.overig.Oppervlakte..hoeveelheid.Paddenstoelenteelt.Champignons..m2./100) +
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Bloembollen.en..knollen..are. + 
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Tuinbouwgroenten..are.
 
 variabelen_opp2 <- c("Grondgebruik.Oppervlakte.Cultuurgrond..are.","Akkerbouw.Oppervlakte.are",
                      "Akkerbouw.Oppervlakte.Granen..are.",
@@ -36,44 +41,357 @@ variabelen_opp2 <- c("Grondgebruik.Oppervlakte.Cultuurgrond..are.","Akkerbouw.Op
 
 ##### Check data #####
 # Check of som van aantal bedrijven in de gemeenten = totaal aantal bedrijven in de achterhoek
-sum(landbouwdata_subset[landbouwdata_subset$?..Perioden == 2020 & 
-                          landbouwdata_subset$Regio.s %in% gem_achterhoek,3])
+sum(landbouwdata_cbs[landbouwdata_cbs$Perioden == 2020 & 
+                          landbouwdata_cbs$Regio.s %in% gem_achterhoek,3])
 
-landbouwdata_subset[landbouwdata_subset$?..Perioden == 2020 & 
-                      landbouwdata_subset$Regio.s == "Achterhoek (LB)",3]
+landbouwdata_cbs[landbouwdata_cbs$Perioden == 2020 & 
+                      landbouwdata_cbs$Regio.s == "Achterhoek (LB)",3]
 
 # Check som van opp
-sum(landbouwdata_subset[landbouwdata_subset$?..Perioden == 2020 & 
-                          landbouwdata_subset$Regio.s == "Nederland",
-                        colnames(landbouwdata_subset) %in% variabelen_opp2[2:7]])
+sum(landbouwdata_cbs[landbouwdata_cbs$Perioden == 2020 & 
+                          landbouwdata_cbs$Regio.s == "Nederland",
+                        colnames(landbouwdata_cbs) %in% variabelen_opp2[2:7]])
 
-sum(landbouwdata_subset[landbouwdata_subset$?..Perioden == 2020 & 
-                          landbouwdata_subset$Regio.s == "Nederland",
-                        colnames(landbouwdata_subset) %in% variabelen_opp2[1]])
+sum(landbouwdata_cbs[landbouwdata_cbs$Perioden == 2020 & 
+                          landbouwdata_cbs$Regio.s == "Nederland",
+                        colnames(landbouwdata_cbs) %in% variabelen_opp2[1]])
 
-##### Write data #####
-# CSV file met aantal data
-write.csv(t(landbouwdata_subset[landbouwdata_subset$Regio.s %in% c("Nederland","Achterhoek (LB)"),
-                                c("?..Perioden", "Regio.s",variabelen_aantal)]),
-          file="Landbouw_gemeente_subset_aantalAchterhoek.csv")
+#### Excel file met aantal data ####
+#load libraries
+#install.packages("writexl")
+library(writexl)
 
-# CSV file met opp. data
-write.csv(t(landbouwdata_subset[landbouwdata_subset$Regio.s %in% c("Nederland","Achterhoek (LB)"),
-                                c("?..Perioden", "Regio.s",variabelen_opp2)]),
-          file="Landbouw_gemeente_subset_oppAchterhoek.csv")
+tabel_aantal <- data.frame(matrix(NA,nrow=14,ncol=5))
+colnames(tabel_aantal) <- c("Grondgebruik","n_NL","perc_NL","n_8rhk","perc_8rhk")
+tabel_aantal$Grondgebruik <- c("Akkerbouw en tuinbouw",           #1
+                               "Akkerbouwgroenten",               #2
+                               "Bloembollen en -knollen",         #3
+                               "Tuinbouwgroenten",                #4
+                               "Fruit onder glas",                #5
+                               "Glasgroenten",                    #6
+                               "Overige - champignons",           #7
+                               "Granen",                          #8
+                               "Grasland en groenvoedergewassen", #9
+                               "Blijvend grasland",               #10
+                               "Natuurlijk grasland",             #11
+                               "Tijdelijk grasland",              #12
+                               "Groenvoedergewassen",             #13
+                               "Totaal")                          #14
+#Nederland
+tabel_aantal$n_NL[2] <- 
+  landbouwdata_cbs$Akkerbouw.Aantal.bedrijven.Akkerbouwgroenten..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[3] <- 
+  landbouwdata_cbs$Tuinbouw.open.grond.Aantal.bedrijven.Bloembollen.en..knollen..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[4] <- 
+  landbouwdata_cbs$Tuinbouw.open.grond.Aantal.bedrijven.Tuinbouwgroenten..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[5] <- 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Aantal.bedrijven.Fruit.onder.glas..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[6] <- 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Aantal.bedrijven.Glasgroenten..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[7] <- 
+  landbouwdata_cbs$Tuinbouw.overig.Aantal.bedrijven.Paddenstoelenteelt.Champignons..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                              landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[8] <- 
+  landbouwdata_cbs$Akkerbouw.Aantal.bedrijven.Granen..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                        landbouwdata_cbs$Perioden == 2020]
 
+tabel_aantal$n_NL[10] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Blijvend.grasland..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                          landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[11] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Natuurlijk.grasland..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                            landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[12] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Tijdelijk.grasland..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_NL[13] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Groenvoedergewassen..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+
+tabel_aantal$n_NL[14] <- 
+  landbouwdata_cbs$Grondgebruik.Aantal.bedrijven.Cultuurgrond..aantal.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+#Achterhoek
+tabel_aantal$n_8rhk[2] <- 
+  landbouwdata_cbs$Akkerbouw.Aantal.bedrijven.Akkerbouwgroenten..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[3] <- 
+  landbouwdata_cbs$Tuinbouw.open.grond.Aantal.bedrijven.Bloembollen.en..knollen..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[4] <- 
+  landbouwdata_cbs$Tuinbouw.open.grond.Aantal.bedrijven.Tuinbouwgroenten..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[5] <- 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Aantal.bedrijven.Fruit.onder.glas..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[6] <- 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Aantal.bedrijven.Glasgroenten..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[7] <- 
+  landbouwdata_cbs$Tuinbouw.overig.Aantal.bedrijven.Paddenstoelenteelt.Champignons..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                              landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[8] <- 
+  landbouwdata_cbs$Akkerbouw.Aantal.bedrijven.Granen..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                landbouwdata_cbs$Perioden == 2020]
+
+tabel_aantal$n_8rhk[10] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Blijvend.grasland..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                          landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[11] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Natuurlijk.grasland..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                            landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[12] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Grasland.Tijdelijk.grasland..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_aantal$n_8rhk[13] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Aantal.bedrijven.Groenvoedergewassen..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+
+tabel_aantal$n_8rhk[14] <- 
+  landbouwdata_cbs$Grondgebruik.Aantal.bedrijven.Cultuurgrond..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                         landbouwdata_cbs$Perioden == 2020]
+
+#Percentages
+for (icol in c(3,5)){
+  for (irow in c(2:8,10:13)){
+    tabel_aantal[irow,icol] <- round(tabel_aantal[irow,icol-1]/tabel_aantal[14,icol-1] * 100,1)
+  }
+}
+
+#Schrijven naar Excel
+write_xlsx(tabel_aantal,"Aantal_bedrijven_grondgebruik_2020.xlsx")
+
+#### Excel file met opp data ####
+#load libraries
+#install.packages("writexl")
+library(writexl)
+
+tabel_opp <- data.frame(matrix(NA,nrow=8,ncol=5))
+colnames(tabel_opp) <- c("Grondgebruik","opp_NL","perc_NL","opp_8rhk","perc_8rhk")
+tabel_opp$Grondgebruik <- c("Akkerbouw en tuinbouw (excl. granen)", #1
+                            "Granen",                               #2
+                            "Blijvend grasland",                    #3
+                            "Natuurlijk grasland",                  #4
+                            "Tijdelijk grasland",                   #5
+                            "Groenvoedergewassen",                  #6
+                            "Overige",                              #7
+                            "Totaal")                               #8
+#Nederland
+tabel_opp$opp_NL[1] <- sum(
+  landbouwdata_cbs$Akkerbouw.Oppervlakte.Akkerbouwgroenten..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                           landbouwdata_cbs$Perioden == 2020], 
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Bloembollen.en..knollen..are.[landbouwdata_cbs$Regio.s == "Nederland" &
+                                                                                   landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Tuinbouwgroenten..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Fruit.onder.glas..m2.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                    landbouwdata_cbs$Perioden == 2020], 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Glasgroenten..m2..[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.overig.Aantal.bedrijven.Paddenstoelenteelt.Champignons..aantal.[landbouwdata_cbs$Regio.s == "Nederland" &
+                                                                                              landbouwdata_cbs$Perioden == 2020]
+)
+tabel_opp$opp_NL[2] <- 
+  landbouwdata_cbs$Akkerbouw.Oppervlakte.Granen..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                landbouwdata_cbs$Perioden == 2020]
+
+tabel_opp$opp_NL[3] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Blijvend.grasland..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                          landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_NL[4] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Natuurlijk.grasland..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                            landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_NL[5] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Tijdelijk.grasland..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                           landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_NL[6] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Groenvoedergewassen..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+
+tabel_opp$opp_NL[8] <- 
+  landbouwdata_cbs$Grondgebruik.Oppervlakte.Cultuurgrond..are.[landbouwdata_cbs$Regio.s == "Nederland" & 
+                                                                         landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_NL[7] <- tabel_opp$opp_NL[8] - sum(tabel_opp$opp_NL[1:6])
+
+
+#Achterhoek (LB)
+tabel_opp$opp_8rhk[1] <- sum(
+  landbouwdata_cbs$Akkerbouw.Oppervlakte.Akkerbouwgroenten..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                   landbouwdata_cbs$Perioden == 2020], 
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Bloembollen.en..knollen..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" &
+                                                                                   landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.open.grond.Oppervlakte.Tuinbouwgroenten..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                            landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Fruit.onder.glas..m2.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                           landbouwdata_cbs$Perioden == 2020], 
+  landbouwdata_cbs$Tuinbouw.onder.glas.Oppervlakte.Glasgroenten..m2..[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                        landbouwdata_cbs$Perioden == 2020],
+  landbouwdata_cbs$Tuinbouw.overig.Aantal.bedrijven.Paddenstoelenteelt.Champignons..aantal.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" &
+                                                                                              landbouwdata_cbs$Perioden == 2020]
+)
+tabel_opp$opp_8rhk[2] <- 
+  landbouwdata_cbs$Akkerbouw.Oppervlakte.Granen..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                        landbouwdata_cbs$Perioden == 2020]
+
+tabel_opp$opp_8rhk[3] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Blijvend.grasland..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                  landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_8rhk[4] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Natuurlijk.grasland..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                    landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_8rhk[5] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Grasland.Tijdelijk.grasland..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                                   landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_8rhk[6] <- 
+  landbouwdata_cbs$Grasland.en.groenvoedergewassen.Oppervlakte.Groenvoedergewassen..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                                           landbouwdata_cbs$Perioden == 2020]
+
+tabel_opp$opp_8rhk[8] <- 
+  landbouwdata_cbs$Grondgebruik.Oppervlakte.Cultuurgrond..are.[landbouwdata_cbs$Regio.s == "Achterhoek (LB)" & 
+                                                                 landbouwdata_cbs$Perioden == 2020]
+tabel_opp$opp_8rhk[7] <- tabel_opp$opp_8rhk[8] - sum(tabel_opp$opp_8rhk[1:6])
+
+#Percentages
+for (icol in c(3,5)){
+  for (irow in 1:7){
+    tabel_opp[irow,icol] <- round(tabel_opp[irow,icol-1]/tabel_opp[8,icol-1] * 100,1)
+  }
+}
+
+#Afronden opp
+tabel_opp$opp_NL <- round(tabel_opp$opp_NL,0)
+tabel_opp$opp_8rhk <- round(tabel_opp$opp_8rhk,0)
+
+#Schrijven naar Excel
+write_xlsx(tabel_opp,"Opp_bedrijven_grondgebruik_2020.xlsx")
+
+#### Waffle chart ####
+library(ggplot2)
+#install.packages("waffle")
+library(waffle)
+
+kleuren_dm = c(rgb(111, 103, 11, maxColorValue = 255), #bruin
+               rgb(220, 206, 22, maxColorValue = 255), #geel (De Marke)
+               rgb(0, 75, 35, maxColorValue = 255), #donker groen (De Marke)
+               rgb(0, 117, 55, maxColorValue = 255), #groen
+               rgb(0, 183, 87, maxColorValue = 255), #licht groen
+               rgb(245, 239, 156, maxColorValue = 255), #licht geel
+               rgb(191, 191, 191, maxColorValue = 255)) #licht grijs
+
+
+tabel_opp$perc_NL[1:7]*4
+percentages_NL <- c("Akkerbouw en tuinbouw (excl. granen)"=28, #1
+                    "Granen"=38,                               #2
+                    "Natuurlijk grasland"=17,                  #4
+                    "Blijvend grasland"=153,                    #3
+                    "Tijdelijk grasland"=45,                   #5
+                    "Groenvoedergewassen"=46,                  #6
+                    "Overige"=73                              #7
+                    )
+
+png("waffle_Nederland.png", width=16, height=11, units = "cm", res=200)
+waffle(percentages_NL,rows=20,size=0.5,colors = kleuren_dm,flip=T,
+       title = "Grondgebruik Nederland (2020)",
+       xlab="1 blok = 0.5%")
+dev.off()
+
+tabel_opp$perc_8rhk[1:7]*4
+percentages_8rhk <- c("Akkerbouw en tuinbouw (excl. granen)"=2, #1
+                    "Granen"=23,                               #2
+                    "Natuurlijk grasland"=7,                  #4
+                    "Blijvend grasland"=199,                    #3
+                    "Tijdelijk grasland"=68,                   #5
+                    "Groenvoedergewassen"=77,                  #6
+                    "Overige"=24                              #7
+)
+
+png("waffle_Achterhoek.png", width=16, height=11, units = "cm", res=200)
+waffle(percentages_8rhk,rows=20,size=0.5,colors = kleuren_dm,flip=T,
+       title = "Grondgebruik Achterhoek (2020)",
+       xlab="1 blok = 0.5%")
+dev.off()
 
 
 #####
 rm(list=ls())
 
-##### Analyse VKA data ####
+
+#### Inlezen VKA data 20120-2020 ####
+#Het laden van benodigde functies die ook op GIT staan.
+library(devtools)
+scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/VKA/main/R/opzettenDatabaseVKX.R")
+
+for(script in scripts_to_source){
+  source_url(script)
+}
+
+#Eenmalig dataset voor 2013-2020 aanmaken
+
+#path_ledendata = "C:/Users/RiannevanBinsbergen/Wageningen University & Research/Brinke, Fleur - VKA_data/Ledenlijst"
+#path_dumpfiles = "C:/Users/RiannevanBinsbergen/Wageningen University & Research/Brinke, Fleur - VKA_data/KLW_Database/DUMP_FILES"
+#output_folder = "C:/Users/RiannevanBinsbergen/Wageningen University & Research/Brinke, Fleur - VKA_data/KLW_Database"
+
+#opzettenDataBaseVKX(type = "VKA",jaartal_start = 2013,jaartal_eind = 2020,
+#                    path_ledendata = path_ledendata,
+#                    path_dumpfiles = path_dumpfiles,
+#                    output_folder = output_folder)
+
+#Daarna dataset inlezen met read_excel functie (readxl package)
+
 
 path_to_dataset = "C:/Users/RiannevanBinsbergen/Wageningen University & Research/Brinke, Fleur - VKA_data/KLW_Database/dataset_VKA_2013_2020.xlsx"
 output_path = "C:/Users/RiannevanBinsbergen/OneDrive - Cooperatie De Marke U.A/Documenten/Samenwerking MV-AK/VKA data"
 
-#Inlezen van dataset
-dataset <- read_excel(path_to_dataset)
+#load libraries
+library(readxl)
+library(writexl)
+
+# Functies
+outputToLog <- function(name, quantity) {
+  cat(paste(name, ": \n"))
+  cat(paste(toString(quantity), "\n"))
+  cat("\n")
+}
+BerekenRuwvoerVoorraad <- function(dataset){
+  # Jur Eekelder
+  
+  # Parameters
+  verliezen_veld_gras = 0.95
+  verliezen_veld_mais = 0.98
+  
+  verliezen_cons_gras = 0.96
+  verliezen_cons_mais = 0.96
+  
+  #Hoe veel ruwvoer wordt er geoogst?
+  dataset$oogst_gras = dataset$opb_graspr_ds * dataset$opp_prgras * verliezen_veld_gras
+  dataset$oogst_mais = dataset$opb_mais_ds * dataset$opp_mais * verliezen_veld_mais
+  dataset$oogst_ruwvoer = dataset$oogst_gras + dataset$oogst_mais
+
+  #Hoeveel ruwvoer wordt er verbruikt?
+  dataset$verbruik_ruwvoer = dataset$gk_verbruik + dataset$sm_verbruik
+
+  #Hoeveel ruwvoer wordt er aangekocht?
+  dataset$aankoop_ruwvoer = dataset$aankoop_aanleg_gk_hoev * verliezen_cons_gras + dataset$aankoop_aanleg_sm_hoev * verliezen_cons_mais
+
+  #Hoeveel ruwvoer wordt er afgevoerd?
+  dataset$afvoer_gras = dataset$afv_gkp1_hoev + dataset$afv_gkp2_hoev + dataset$afv_gkp3_hoev + dataset$afv_gkp4_hoev
+  dataset$afvoer_mais = dataset$afv_gkp1_hoev + dataset$afv_sm2_hoev + dataset$afv_sm3_hoev + dataset$afv_sm4_hoev
+
+  #Hoeveel ruwvoer wordt er aangelegd
+  dataset$aanleg_ruwvoer = dataset$oogst_ruwvoer + dataset$aankoop_ruwvoer - dataset$afvoer_gras - dataset$afvoer_mais
+  dataset$aanleg_ruwvoer_2 = dataset$aanleg_gk_hoev + dataset$aanleg_sm_hoev
+  
+  dataset$aandeel_oogst_gras_gebruik = (dataset$gk_verbruik / 0.95) / dataset$opb_graspr_ds #waar komt 0.95 vandaan?
+  dataset$aandeel_oogst_mais_gebruik = (dataset$sm_verbruik / 0.95) / dataset$opb_mais_ds
+
+  # Ruwvoeropbrengst wordt in de KLW uit de voeding berekend en niet via de meting van de graskuil. 
+  # Daar zit een denkfout, dus de kans is heel klein dat die kengetallen naadloos op elkaar aansluiten.
+}
 
 #Set working directory
 if(file.exists(output_path)){
@@ -81,40 +399,316 @@ if(file.exists(output_path)){
 } else {
   warning("Path naar voor output bestaat niet!")
 }
+outputToLog("Working Directory is", getwd())
 
-# Parameters
-verliezen_veld_gras = 0.95
-verliezen_veld_mais = 0.98
+#Inlezen van dataset
+dataset <- read_excel(path_to_dataset)
+outputToLog("Number of variables", ncol(dataset))
+outputToLog("Number of observarions", nrow(dataset))
+outputToLog("Data for the periods", unique(dataset$jaartal))
+outputToLog("Number of farms", length(unique(dataset$PK_VKX)))
 
-verliezen_cons_gras = 0.96
-verliezen_cons_mais = 0.96
+#### Oppervlakte/grondgebruik ####
+tabel_opp <- data.frame(matrix(NA,nrow=5*8,ncol=4))
+colnames(tabel_opp) <- c("Grondgebruik","jaar","opp_VKA","perc_VKA")
+type_grond <-c("Overig bouwland (geen gras- of snijmais)", #1
+               "Productie grasland",                       #2
+               "Natuurlijk grasland",                      #3
+               "Snijmaisland",                             #4
+               "Totaal")                                   #5
+tabel_opp$Grondgebruik <- rep(type_grond,8)
+tabel_opp$jaar <- rep(2013:2020, each=5)
 
-#Hoe veel ruwvoer wordt er geoogst?
-dataset$oogst_gras = dataset$opb_graspr_ds * dataset$opp_prgras * verliezen_veld_gras
-dataset$oogst_mais = dataset$opb_mais_ds * dataset$opp_mais * verliezen_veld_mais
-dataset$oogst_ruwvoer = dataset$oogst_gras + dataset$oogst_mais
+for (igrond in 1:5){
+  for (year in 2013:2020){
+    if(igrond == 1){
+      tabel_opp$opp_VKA[tabel_opp$jaar == year & tabel_opp$Grondgebruik == type_grond[igrond]] <- 
+        sum(dataset$opp_overig[dataset$jaartal == year])
+    } else if (igrond == 2){
+      tabel_opp$opp_VKA[tabel_opp$jaar == year & tabel_opp$Grondgebruik == type_grond[igrond]] <- 
+        sum(dataset$opp_prgras[dataset$jaartal == year])
+    } else if (igrond == 3){
+      tabel_opp$opp_VKA[tabel_opp$jaar == year & tabel_opp$Grondgebruik == type_grond[igrond]] <- 
+        sum(dataset$opp_natuur[dataset$jaartal == year])
+    } else if (igrond == 4){
+      tabel_opp$opp_VKA[tabel_opp$jaar == year & tabel_opp$Grondgebruik == type_grond[igrond]] <- 
+        sum(dataset$opp_mais[dataset$jaartal == year])
+    } else if (igrond == 5){
+      tabel_opp$opp_VKA[tabel_opp$jaar == year & tabel_opp$Grondgebruik == type_grond[igrond]] <- 
+        sum(dataset$opp_totaal[dataset$jaartal == year])
+    }
+  }
+}
 
-#Hoeveel ruwvoer wordt er verbruikt?
-dataset$verbruik_ruwvoer = dataset$gk_verbruik + dataset$sm_verbruik
+#Percentages
+for (igrond in 1:4){
+  for (year in 2013:2020){
+    tabel_opp$perc_VKA[tabel_opp$jaar == year & tabel_opp$Grondgebruik == type_grond[igrond]] <-
+      round(tabel_opp$opp_VKA[tabel_opp$jaar == year & tabel_opp$Grondgebruik == type_grond[igrond]] / 
+      tabel_opp$opp_VKA[tabel_opp$jaar == year & tabel_opp$Grondgebruik == type_grond[5]] * 100,1)
+  }
+}
 
-#Hoeveel ruwvoer wordt er aangekocht?
-dataset$aankoop_ruwvoer = dataset$aankoop_aanleg_gk_hoev * verliezen_cons_gras + dataset$aankoop_aanleg_sm_hoev * verliezen_cons_mais
+#Schrijven naar Excel
+write_xlsx(tabel_opp,"Opp_grondgebruik_VKA.xlsx")
 
-#Hoeveel ruwvoer wordt er afgevoerd?
-dataset$afvoer_gras = dataset$afv_gkp1_hoev + dataset$afv_gkp2_hoev + dataset$afv_gkp3_hoev + dataset$afv_gkp4_hoev
-dataset$afvoer_mais = dataset$afv_gkp1_hoev + dataset$afv_sm2_hoev + dataset$afv_sm3_hoev + dataset$afv_sm4_hoev
+#### Waffle charts####
+library(ggplot2)
+#install.packages("waffle")
+library(waffle)
 
-#Hoeveel ruwvoer wordt er aangelegd
-dataset$aanleg_ruwvoer = dataset$oogst_ruwvoer + dataset$aankoop_ruwvoer - dataset$afvoer_gras - dataset$afvoer_mais
-dataset$aanleg_ruwvoer_2 = dataset$aanleg_gk_hoev + dataset$aanleg_sm_hoev
+kleuren_dm = c(rgb(111, 103, 11, maxColorValue = 255), #bruin
+               rgb(220, 206, 22, maxColorValue = 255), #geel (De Marke)
+               rgb(0, 75, 35, maxColorValue = 255), #donker groen (De Marke)
+               rgb(0, 117, 55, maxColorValue = 255), #groen
+               rgb(0, 183, 87, maxColorValue = 255), #licht groen
+               rgb(245, 239, 156, maxColorValue = 255), #licht geel
+               rgb(191, 191, 191, maxColorValue = 255)) #licht grijs
 
-dataset$aandeel_oogst_gras_gebruik = (dataset$gk_verbruik / 0.95) / dataset$opb_graspr_ds #waar komt 0.95 vandaan?
-dataset$aandeel_oogst_mais_gebruik = (dataset$sm_verbruik / 0.95) / dataset$opb_mais_ds
+year = 2013
+print(year)
+print(tabel_opp$perc_VKA[tabel_opp$jaar == year] * 4)
+perc_vector<- c("Overig bouwland (geen gras- of snijmais)"=7,
+                "Productie grasland"=303,
+                "Natuurlijk grasland"=5,
+                "Snijmaisland"=85)
+print(sum(perc_vector))
+png(paste0("waffle_VKA_",year,".png"), width=16, height=11, units = "cm", res=200)
+waffle(perc_vector,rows=20,size=0.5,colors = kleuren_dm[c(2,4,3,6)],flip=T,
+       title = paste0("Grondgebruik VKA leden (",year,")"),
+       xlab="1 blok = 0.5%")
+dev.off()
 
-# Want de ruwvoeropbrengst wordt in de KLW uit de voeding berekend en niet via de meting van de graskuil. Daar zit een denkfout, dus de kans is heel klein dat die kengetallen naadloos op elkaar aansluiten.
-# 
+year = 2014
+perc_vector<- c("Overig bouwland (geen gras- of snijmais)"=5,
+                "Productie grasland"=320,
+                "Natuurlijk grasland"=4,
+                "Snijmaisland"=71)
+print(sum(perc_vector))
+png(paste0("waffle_VKA_",year,".png"), width=16, height=11, units = "cm", res=200)
+waffle(perc_vector,rows=20,size=0.5,colors = kleuren_dm[c(2,4,3,6)],flip=T,
+       title = paste0("Grondgebruik VKA leden (",year,")"),
+       xlab="1 blok = 0.5%")
+dev.off()
+
+year = 2015
+perc_vector<- c("Overig bouwland (geen gras- of snijmais)"=4,
+                "Productie grasland"=324,
+                "Natuurlijk grasland"=6,
+                "Snijmaisland"=66)
+print(sum(perc_vector))
+png(paste0("waffle_VKA_",year,".png"), width=16, height=11, units = "cm", res=200)
+waffle(perc_vector,rows=20,size=0.5,colors = kleuren_dm[c(2,4,3,6)],flip=T,
+       title = paste0("Grondgebruik VKA leden (",year,")"),
+       xlab="1 blok = 0.5%")
+dev.off()
+
+year = 2016
+perc_vector<- c("Overig bouwland (geen gras- of snijmais)"=5,
+                "Productie grasland"=327,
+                "Natuurlijk grasland"=4,
+                "Snijmaisland"=64)
+print(sum(perc_vector))
+png(paste0("waffle_VKA_",year,".png"), width=16, height=11, units = "cm", res=200)
+waffle(perc_vector,rows=20,size=0.5,colors = kleuren_dm[c(2,4,3,6)],flip=T,
+       title = paste0("Grondgebruik VKA leden (",year,")"),
+       xlab="1 blok = 0.5%")
+dev.off()
+
+year = 2017
+perc_vector<- c("Overig bouwland (geen gras- of snijmais)"=6,
+                "Productie grasland"=326,
+                "Natuurlijk grasland"=4,
+                "Snijmaisland"=64)
+print(sum(perc_vector))
+png(paste0("waffle_VKA_",year,".png"), width=16, height=11, units = "cm", res=200)
+waffle(perc_vector,rows=20,size=0.5,colors = kleuren_dm[c(2,4,3,6)],flip=T,
+       title = paste0("Grondgebruik VKA leden (",year,")"),
+       xlab="1 blok = 0.5%")
+dev.off()
+ 
+year = 2018
+perc_vector<- c("Overig bouwland (geen gras- of snijmais)"=7,
+                "Productie grasland"=321,
+                "Natuurlijk grasland"=6,
+                "Snijmaisland"=66)
+print(sum(perc_vector))
+png(paste0("waffle_VKA_",year,".png"), width=16, height=11, units = "cm", res=200)
+waffle(perc_vector,rows=20,size=0.5,colors = kleuren_dm[c(2,4,3,6)],flip=T,
+       title = paste0("Grondgebruik VKA leden (",year,")"),
+       xlab="1 blok = 0.5%")
+dev.off()
+
+year = 2019
+perc_vector<- c("Overig bouwland (geen gras- of snijmais)"=5,
+                "Productie grasland"=325,
+                "Natuurlijk grasland"=5,
+                "Snijmaisland"=65)
+print(sum(perc_vector))
+png(paste0("waffle_VKA_",year,".png"), width=16, height=11, units = "cm", res=200)
+waffle(perc_vector,rows=20,size=0.5,colors = kleuren_dm[c(2,4,3,6)],flip=T,
+       title = paste0("Grondgebruik VKA leden (",year,")"),
+       xlab="1 blok = 0.5%")
+dev.off()
+
+year = 2020
+perc_vector<- c("Overig bouwland (geen gras- of snijmais)"=6,
+                    "Productie grasland"=324,
+                    "Natuurlijk grasland"=6,
+                    "Snijmaisland"=64)
+print(sum(perc_vector))
+png(paste0("waffle_VKA_",year,".png"), width=16, height=11, units = "cm", res=200)
+waffle(perc_vector,rows=20,size=0.5,colors = kleuren_dm[c(2,4,3,6)],flip=T,
+       title = paste0("Grondgebruik VKA leden (",year,")"),
+        xlab="1 blok = 0.5%")
+dev.off()
+
+#### Stacked Bar Plot ####
+# library
+library(ggplot2)
+
+png("stacked_bar_plot_grondgebruik.png", width=16, height=12, units = "cm", res=200)
+ggplot(tabel_opp[tabel_opp$Grondgebruik != 'Totaal',], aes(fill=Grondgebruik, y=opp_VKA, x=jaar)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = kleuren_dm[c(3,2,4,6)]) +
+  scale_x_continuous(breaks = 2013:2020) +
+  labs(x = "Jaar",y = "Oppervlakte in ha") +
+  theme(
+    panel.background = element_rect(fill = "transparent"), # bg of the panel
+    plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+    panel.grid.major = element_blank(), # get rid of major grid
+    panel.grid.minor = element_blank(), # get rid of minor grid
+    legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+    legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+    )
+dev.off()
+
+#### Rantsoen samenstelling ####
+rantsoen <- function(dataset,sub){
+  
+tabel_rantsoen <- data.frame(matrix(NA,nrow=5*8,ncol=7))
+colnames(tabel_rantsoen) <- c("Voersoort","Jaar","Gemiddelde","SD","Min","Max","verbruik")
+rantsoen_aandeel <-c("Vers gras",       #1
+               "Graskuil",              #2
+               "Snijmais",              #3
+               "Overige bijproducten",  #4
+               "Krachtvoer")            #5
+tabel_rantsoen$Voersoort <- rep(rantsoen_aandeel,8)
+tabel_rantsoen$Jaar <- rep(2013:2020, each=5)
+
+for (irantsoen in 1:5){
+  for (year in 2013:2020){
+    if(irantsoen == 1){
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],3] <- 
+        mean(dataset$gr_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],4] <- 
+        sd(dataset$gr_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],5] <- 
+        min(dataset$gr_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],6] <- 
+        max(dataset$gr_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],7] <- 
+        mean(dataset$gr_verbruik[dataset$jaartal == year])
+    } else if(irantsoen == 2){
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],3] <- 
+        mean(dataset$gk_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],4] <- 
+        sd(dataset$gk_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],5] <- 
+        min(dataset$gk_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],6] <- 
+        max(dataset$gk_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],7] <- 
+        mean(dataset$gk_verbruik[dataset$jaartal == year])
+    } else if(irantsoen == 3){
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],3] <- 
+        mean(dataset$sm_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],4] <- 
+        sd(dataset$sm_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],5] <- 
+        min(dataset$sm_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],6] <- 
+        max(dataset$sm_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],7] <- 
+        mean(dataset$sm_verbruik[dataset$jaartal == year])
+    } else if(irantsoen == 4){
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],3] <- 
+        mean(dataset$ov_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],4] <- 
+        sd(dataset$ov_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],5] <- 
+        min(dataset$ov_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],6] <- 
+        max(dataset$ov_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],7] <- 
+        mean(dataset$ov_verbruik[dataset$jaartal == year])
+    } else if(irantsoen == 5){
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],3] <- 
+        mean(dataset$kv_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],4] <- 
+        sd(dataset$kv_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],5] <- 
+        min(dataset$kv_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],6] <- 
+        max(dataset$kv_aandeel[dataset$jaartal == year])
+      tabel_rantsoen[tabel_rantsoen$Jaar == year & tabel_rantsoen$Voersoort == rantsoen_aandeel[irantsoen],7] <- 
+        mean(dataset$kv_verbruik[dataset$jaartal == year])
+    }
+  }
+}
+
+#Schrijven naar Excel
+write_xlsx(tabel_rantsoen,paste0("rantsoen_aandeel_VKA_",sub,".xlsx"))
+
+#Bar plot
+png(paste0("stacked_bar_plot_rantsoen_",sub,".png"), width=16, height=12, units = "cm", res=200)
+  print(ggplot(tabel_rantsoen, aes(fill=Voersoort, y=Gemiddelde, x=Jaar)) +
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = kleuren_dm[c(3,7,6,2,4)]) +
+  scale_x_continuous(breaks = 2013:2020) +
+  labs(x = "Jaar",y = "Gemiddeld rantsoen (%)") +
+  theme(
+      panel.background = element_rect(fill = "transparent"), # bg of the panel
+      plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+      panel.grid.major = element_blank(), # get rid of major grid
+      panel.grid.minor = element_blank(), # get rid of minor grid
+      legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+      legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+      ))
+dev.off()
+
+png(paste0("stacked_bar_plot_rantsoen_verbuik_",sub,".png"), width=16, height=12, units = "cm", res=200)
+  print(ggplot(tabel_rantsoen, aes(fill=Voersoort, y=verbruik, x=Jaar)) +
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = kleuren_dm[c(3,7,6,2,4)]) +
+  scale_x_continuous(breaks = 2013:2020) +
+  scale_y_continuous(breaks = c(0,250000,500000,750000,1000000), labels = c(0,250,500,750,1000)) +
+  labs(x = "Jaar",y = "Gemiddelde voeropname jongvee en melkvee (1000 kg ds)") +
+  theme(
+      panel.background = element_rect(fill = "transparent"), # bg of the panel
+      plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+      panel.grid.major = element_blank(), # get rid of major grid
+      panel.grid.minor = element_blank(), # get rid of minor grid
+      legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+      legend.box.background = element_rect(fill = "transparent") # get rid of legend panel bg
+      ))
+dev.off()
+}
+
+# volledige set
+rantsoen(dataset,"all")
+
+# bedrijven met bijproducten
+subset <- unique(dataset$PK_VKX[dataset$ov_aandeel >= 10])
+rantsoen(dataset[dataset$PK_VKX %in% subset,],"ov10")
+
+# bedrijven met laag krachtvoer
+subset <- unique(dataset$PK_VKX[dataset$kv_aandeel < 20])
+rantsoen(dataset[dataset$PK_VKX %in% subset,],"kv20")
 
 
+
+#### ####
 #dataselectie
 columns = c(
   "Achternaam",
@@ -134,11 +728,7 @@ columns = c(
   "opp_natuur", #opp natuurgrasland
   "opp_mais", #opp snijmaisland
   "opp_overig", #opp overig bouwland (geen gras- of mais)
-  
-#  "kvperbedrijf", #opname krachtvoer totaal
-#  "kvper100kgmelk",
-#  "bpperbedrijf", #opname bijproducten totaal
-  
+
   "rants_geh_re",
   "rants_verbruik", #totaal voeropname veestapel (melk- en jongvee)
   "gr_verbruik", #vers gras voeropname veestapel
