@@ -393,6 +393,15 @@ BerekenRuwvoerVoorraad <- function(dataset){
   # Daar zit een denkfout, dus de kans is heel klein dat die kengetallen naadloos op elkaar aansluiten.
 }
 
+kleuren_dm = c(rgb(111, 103, 11, maxColorValue = 255), #bruin
+               rgb(220, 206, 22, maxColorValue = 255), #geel (De Marke)
+               rgb(0, 75, 35, maxColorValue = 255), #donker groen (De Marke)
+               rgb(0, 117, 55, maxColorValue = 255), #groen
+               rgb(0, 183, 87, maxColorValue = 255), #licht groen
+               rgb(245, 239, 156, maxColorValue = 255), #licht geel
+               rgb(191, 191, 191, maxColorValue = 255)) #licht grijs
+
+
 #Set working directory
 if(file.exists(output_path)){
   setwd(output_path)
@@ -456,14 +465,6 @@ write_xlsx(tabel_opp,"Opp_grondgebruik_VKA.xlsx")
 library(ggplot2)
 #install.packages("waffle")
 library(waffle)
-
-kleuren_dm = c(rgb(111, 103, 11, maxColorValue = 255), #bruin
-               rgb(220, 206, 22, maxColorValue = 255), #geel (De Marke)
-               rgb(0, 75, 35, maxColorValue = 255), #donker groen (De Marke)
-               rgb(0, 117, 55, maxColorValue = 255), #groen
-               rgb(0, 183, 87, maxColorValue = 255), #licht groen
-               rgb(245, 239, 156, maxColorValue = 255), #licht geel
-               rgb(191, 191, 191, maxColorValue = 255)) #licht grijs
 
 year = 2013
 print(year)
@@ -707,6 +708,110 @@ subset <- unique(dataset$PK_VKX[dataset$kv_aandeel < 20])
 rantsoen(dataset[dataset$PK_VKX %in% subset,],"kv20")
 
 
+
+#### N-teelt vs. verbruik ####
+#dataselectie
+columns = c(
+  "Achternaam",
+  "Plaats",
+  "PK_VKX",
+  "jaartal",
+  "nkoe",
+  "nkalf", #<1 jaar
+  "npink", #>1 jaar
+  "melkprod",
+  "melkperha",
+  
+  "opp_totaal", #totaal opp bedrijf
+  "opp_prgras", #opp productie grasland
+  "opp_natuur", #opp natuurgrasland
+  "opp_mais", #opp snijmaisland
+  "opp_overig", #opp overig bouwland (geen gras- of mais)
+  
+  #percentage eigen geteeld N vs. voerverbruik N en dat vergelijken met aandeel eigen N rantsoen
+  #% eigen teelt > eigen teelt in rantsoen: veel ruwvoer & veel aankoop krachtvoer
+  
+  "eiwiteig_tlt_vg", #eigen teelt N: vers gras (kg N)
+  "eiwiteig_tlt_gk", #eigen teelt N: grasproducten
+  "eiwiteig_tlt_sm", #eigen teelt N: snijmais
+  "eiwiteig_tlt_ov", #eigen teelt N: akkerbouw veevoer
+  
+  "eiwiteig_vbr_vg", #verbruik N: vers gras
+  "eiwiteig_vbr_gk", #verbruik N: grasproducten
+  "eiwiteig_vbr_sm", #verbruik N: snijmais
+  "eiwiteig_vbr_ov", #verbruik N: overige ruwvoer en natte bijproducten
+  "eiwiteig_vbr_kv", #verbruik N: krachtvoeders
+  
+  "rants_geh_n", #N-gehalte rantsoen, totaal (g/kg ds)
+  "rants_verbruik", #totaal rantsoen (kg ds)
+  "pceigen_n" #Voerverbruik, aandeel eigen voer, stikstof
+)
+
+if(all(columns %in% colnames(dataset))){
+  dataset_stikstof = dataset[, columns]
+} else {
+  stop("Input dataset heeft niet de juiste headers")
+}
+
+dataset_stikstof$eiwiteig_tlt_totaal <- dataset_stikstof$eiwiteig_tlt_gk +
+  dataset_stikstof$eiwiteig_tlt_sm + dataset_stikstof$eiwiteig_tlt_ov + 
+  dataset_stikstof$eiwiteig_tlt_vg
+
+dataset_stikstof$eiwiteig_vbr_totaal <- dataset_stikstof$eiwiteig_vbr_gk + 
+  dataset_stikstof$eiwiteig_vbr_sm + dataset_stikstof$eiwiteig_vbr_ov +
+  dataset_stikstof$eiwiteig_vbr_vg + dataset_stikstof$eiwiteig_vbr_kv
+
+dataset_stikstof$eiwiteig_vbr_ruwvoer <- dataset_stikstof$eiwiteig_vbr_gk + 
+  dataset_stikstof$eiwiteig_vbr_sm + dataset_stikstof$eiwiteig_vbr_ov +
+  dataset_stikstof$eiwiteig_vbr_vg
+
+dataset_stikstof$eiwiteig_tlt_vorigjaar <- NA
+farms <- unique(dataset$PK_VKX)
+for (ifarm in 1:length(farms)){
+  for (iyear in 2014:2020) {
+    dataset_stikstof$eiwiteig_tlt_vorigjaar[dataset_stikstof$PK_VKX == farms[ifarm] & 
+                                              dataset_stikstof$jaartal == iyear] <- 
+      dataset_stikstof$eiwiteig_tlt_totaal[dataset_stikstof$PK_VKX == farms[ifarm] &  
+                                             dataset_stikstof$jaartal == iyear-1]
+  }
+}
+
+
+#verbruik N - teelt N (negatief is meer teelt dan verbruik)
+dataset_stikstof$eiwiteig_vbrmintlt <- dataset_stikstof$eiwiteig_vbr_ruwvoer - 
+  dataset_stikstof$eiwiteig_tlt_totaal
+dataset_stikstof$eiwiteig_vbrmintlt_ha <- dataset_stikstof$eiwiteig_vbrmintlt / 
+  dataset_stikstof$opp_totaal
+
+#verbruik N - teelt N jaar ervoor (meestal wordt ruwvoer in het jaar ervoor geproduceerd)
+dataset_stikstof$eiwiteig_vbrmintlt_vorigjaar <- dataset_stikstof$eiwiteig_vbr_ruwvoer - 
+  dataset_stikstof$eiwiteig_tlt_vorigjaar
+dataset_stikstof$eiwiteig_vbrmintlt_vorigjaar_ha <- dataset_stikstof$eiwiteig_vbrmintlt_vorigjaar / 
+  dataset_stikstof$opp_totaal
+
+View(dataset_stikstof[dataset_stikstof$eiwiteig_vbrmintlt_ha < 0 & 
+                        dataset_stikstof$eiwiteig_vbrmintlt_vorigjaar_ha < 0,
+                      c(1,2,5,9,10,23,31,32,33,34)])
+summary(dataset_stikstof$eiwiteig_vbrmintlt_vorigjaar_ha)
+
+plot(dataset_stikstof$eiwiteig_vbr_ruwvoer,dataset_stikstof$eiwiteig_tlt_totaal,
+     ylab="eigen teelt N: totaal (kg N)", xlab = "verbruik N: ruwvoer (kg N)",
+     xlim = lim, ylim = lim)
+abline(a=0,b=1,col="red")
+
+# library
+library(ggplot2)
+
+lim <- c(min(dataset_stikstof$eiwiteig_tlt_totaal,dataset_stikstof$eiwiteig_vbr_ruwvoer),
+         max(dataset_stikstof$eiwiteig_tlt_totaal,dataset_stikstof$eiwiteig_vbr_ruwvoer))
+
+png("verbruik_vs_teelt.png", width=16, height=12, units = "cm", res=200)
+ggplot(dataset_stikstof, aes(y=eiwiteig_tlt_totaal, x=eiwiteig_vbr_ruwvoer, colour=as.factor(jaartal))) + 
+  geom_point() +
+  geom_abline(slope=1,intercept = 0) +
+  scale_x_continuous(name = "Verbruik N: ruwvoer (kg N)", limits = lim) +
+  scale_y_continuous(name = "Eigen teelt N: totaal (kg N)", limits = lim)
+dev.off()
 
 #### ####
 #dataselectie
