@@ -185,12 +185,11 @@ defineKLWKPI <- function(working_dir,input_file_VKA){
   datasetVKA$nr <- as.numeric(datasetVKA$nr)
   
   datasetVKA$kpi_n <- datasetVKA$kring1_bedbal_afvtot / datasetVKA$kring1_bedbal_aantot
+  datasetVKA$kpi_nbenut <-datasetVKA$benut_n_bed
   datasetVKA$kpi_nh3 <- datasetVKA$emnh3_tot_bdr / datasetVKA$opp_totaal
   datasetVKA$kpi_p <- datasetVKA$kring2_bedbal_aantot - datasetVKA$kring2_bedbal_afvtot
-  datasetVKA$kpi_akkerbouw <- datasetVKA$opp_overig / datasetVKA$opp_totaal
-  
+  datasetVKA$kpi_voedsel <- datasetVKA$opp_overig / datasetVKA$opp_totaal
   datasetVKA$kpi_bkg <- datasetVKA$bkg_totaal / datasetVKA$opp_totaal
-  
   datasetVKA$kpi_os <- datasetVKA$osontw_bodem
   datasetVKA$kpi_blijgras <- datasetVKA$dzh_blijgras_aand
   datasetVKA$kpi_weidmk <- datasetVKA$weidmk_dgn
@@ -219,7 +218,7 @@ datasetVKA <- defineKLWKPI(working_dir,input_file_VKA)
 
 ## Koppelen aan VALA data ##
 working_dir = "C:/Users/RiannevanBinsbergen/OneDrive - Cooperatie De Marke U.A/Documenten/KPI-k gebiedspilot/Notitie1/Nieuw"
-input_file_VALA = "KPI project 6 okt 2021 SCAN-GIS 2020_def.xlsx"
+input_file_VALA = "../KPI project 6 okt 2021 SCAN-GIS 2020_def.xlsx"
 sheet_VALA = "KPItotaal"
 output_file_KPI = "Gecombineerde_dataset_KPIs.xlsx"
 
@@ -258,8 +257,8 @@ mergeVKA_VALA <- function(datasetVKA,working_dir,input_file_VALA,sheet_VALA,outp
   datasetVALA$Deelnemer <- as.numeric(datasetVALA$Deelnemer)
   
   kpiVALA <- as.data.frame(matrix(NA,length(unique(datasetVALA$Deelnemer)),6))
-  colnames(kpiVALA)<-c("nr","kpi_kruid","kpi_nl","kpi_nl_waarde",
-                       "kpi_gb","kpi_gb_waarde")
+  colnames(kpiVALA)<-c("nr","kpi_kg","kpi_nl","kpi_nlw",
+                       "kpi_gb","kpi_gbw")
   kpiVALA$nr <- unique(datasetVALA$Deelnemer)
   
   isEmpty <- function(x) {
@@ -269,7 +268,7 @@ mergeVKA_VALA <- function(datasetVKA,working_dir,input_file_VALA,sheet_VALA,outp
   for (inr in 1:nrow(kpiVALA)) {
     if(!isEmpty(datasetVALA$`% KPI score opp`[datasetVALA$Deelnemer == kpiVALA$nr[inr] &
                                            datasetVALA$KPI == "Graslandbeheer"])){
-      kpiVALA$kpi_kruid[inr] <- datasetVALA$`% KPI score opp`[datasetVALA$Deelnemer == kpiVALA$nr[inr] &
+      kpiVALA$kpi_kg[inr] <- datasetVALA$`% KPI score opp`[datasetVALA$Deelnemer == kpiVALA$nr[inr] &
                                                          datasetVALA$KPI == "Graslandbeheer"]*100
     }
     
@@ -277,7 +276,7 @@ mergeVKA_VALA <- function(datasetVKA,working_dir,input_file_VALA,sheet_VALA,outp
                                               datasetVALA$KPI == "Natuur en Landschap"])){
       kpiVALA$kpi_nl[inr] <- datasetVALA$`% KPI score opp`[datasetVALA$Deelnemer == kpiVALA$nr[inr] &
                                                              datasetVALA$KPI == "Natuur en Landschap"]*100
-      kpiVALA$kpi_nl_waarde[inr] <- datasetVALA$`% KPI score waarde`[datasetVALA$Deelnemer == kpiVALA$nr[inr] &
+      kpiVALA$kpi_nlw[inr] <- datasetVALA$`% KPI score waarde`[datasetVALA$Deelnemer == kpiVALA$nr[inr] &
                                                               datasetVALA$KPI == "Natuur en Landschap"]*100
     }
     
@@ -285,7 +284,7 @@ mergeVKA_VALA <- function(datasetVKA,working_dir,input_file_VALA,sheet_VALA,outp
                                               datasetVALA$KPI == "groenblauwe dooradering"])){
       kpiVALA$kpi_gb[inr] <- datasetVALA$`% KPI score opp`[datasetVALA$Deelnemer == kpiVALA$nr[inr] &
                                                               datasetVALA$KPI == "groenblauwe dooradering"]*100
-      kpiVALA$kpi_gb_waarde[inr] <- datasetVALA$`% KPI score waarde`[datasetVALA$Deelnemer == kpiVALA$nr[inr] &
+      kpiVALA$kpi_gbw[inr] <- datasetVALA$`% KPI score waarde`[datasetVALA$Deelnemer == kpiVALA$nr[inr] &
                                                               datasetVALA$KPI == "groenblauwe dooradering"]*100
     }
   }
@@ -314,6 +313,39 @@ setwd("C:/Users/RiannevanBinsbergen/OneDrive - Cooperatie De Marke U.A/Documente
 datasetKPI <- read_excel("Gecombineerde_dataset_KPIs.xlsx")
 
 #Functies
+kleuren_dm = c(rgb(0, 75, 35, maxColorValue = 255),rgb(220, 206, 22, maxColorValue = 255),
+               rgb(165, 165, 165, maxColorValue = 255),"black")
+
+summarystats <- function(dataset,varname,output_file){
+  #load libraries
+  #install.packages("writexl")
+  library(writexl)
+  
+  #Algemene functies
+  outputToLog <- function(name, quantity) {
+    cat(paste(name, ": \n"))
+    cat(paste(toString(quantity), "\n"))
+    cat("\n")
+  }
+  
+  #install.packages("psych")
+  library(psych)
+  sum.table <- describe(dataset)
+  sum.table$name <- row.names(sum.table)
+  
+  stats <- c("name","n","mean","sd","min","max")
+  
+  #Statistics for variables not equal to 0
+  dataset[dataset == 0] <- NA
+  sum.table.ne0 <- describe(dataset)
+  sum.table.ne0$name <- paste0(row.names(sum.table.ne0),".ne0")
+  
+  #Write to Excel
+  write_xlsx(rbind(sum.table[varname,stats],sum.table.ne0[varname,stats]),output_file)
+  
+  outputToLog("Summary statistics staan in",output_file)
+}
+
 makehistograms <- function(dataset,varname){
   
   #voor testen
@@ -321,8 +353,6 @@ makehistograms <- function(dataset,varname){
   #varname <- kpi_columns
   #ivar = 1
   
-  kleuren_dm = c(rgb(0, 75, 35, maxColorValue = 255),rgb(220, 206, 22, maxColorValue = 255),
-                 rgb(165, 165, 165, maxColorValue = 255),"black")
   ikleur = 0
   
   for (ivar in 1:length(varname)) {
@@ -336,10 +366,30 @@ makehistograms <- function(dataset,varname){
     }
     
     x <- matrix(unlist(dataset[,varname[ivar]]))
-    hist(x, plot = T, col = kleuren_dm[ikleur],xlab=varname[ivar],ylab="Aantal",main=varname[ivar])
+    hist(x, plot = T, col = kleuren_dm[ikleur],xlab=varname[ivar],ylab="Aantal",main="")
     
     dev.off()
   }
+}
+
+makescatterplot <- function(dataset, varname.x, varname.y){
+ 
+  #testen
+  #varname.x <- "kpi_n"
+  #varname.y <- "kpi_nbenut"
+  #dataset <- datasetKPI
+  
+  png(paste0("Scatter_",varname.x,"_",varname.y,".png"), width=12, height=12, units = "cm", res=200)
+  
+  plot(dataset[,varname.x],dataset[,varname.y],col = kleuren_dm[1],pch=20,
+       xlab=varname.x,ylab=varname.y,main="")
+  z <- lm(dataset[,varname.y] ~ dataset[,varname.x])
+  abline(z, col= kleuren_dm[2])
+  
+  dev.off()
+  
+  return(paste("correlation =",cor(dataset[,varname.x],dataset[,varname.y])))
+  
 }
 
 correlationplots <- function(dataset,varname,filename,factorcolor){
@@ -349,10 +399,7 @@ correlationplots <- function(dataset,varname,filename,factorcolor){
   #varname <- kpi_columns
   #filename <- "corrplots.pdf"
   
-  kleuren_dm = c(rgb(0, 75, 35, maxColorValue = 255),rgb(220, 206, 22, maxColorValue = 255),
-                 rgb(165, 165, 165, maxColorValue = 255),"black")
-  
-  # Function to add histograms
+ # Function to add histograms
   panel.hist <- function(x) {
     usr <- par("usr")
     on.exit(par(usr))
@@ -406,55 +453,21 @@ correlationplots <- function(dataset,varname,filename,factorcolor){
   
 }
 
-summarystats <- function(dataset,varname,output_file){
-  #voor testen
-  #dataset <- read_excel("VKAdata_notitie1.xlsx")
-  #varname <- c(alg_columns,kpi_columns)
-  #output_file <- "Summarystats.xlsx"
-  
-  #load libraries
-  #install.packages("writexl")
-  library(writexl)
-  
-  #Algemene functies
-  outputToLog <- function(name, quantity) {
-    cat(paste(name, ": \n"))
-    cat(paste(toString(quantity), "\n"))
-    cat("\n")
-  }
-  
-  #install.packages("psych")
-  library(psych)
-  sum.table <- describe(dataset)
-  sum.table$name <- row.names(sum.table)
-  
-  stats <- c("name","n","mean","sd","min","max")
-  
-  #Statistics for variables not equal to 0
-  dataset[dataset == 0] <- NA
-  sum.table.ne0 <- describe(dataset)
-  sum.table.ne0$name <- paste0(row.names(sum.table.ne0),".ne0")
-  
-  #Write to Excel
-  write_xlsx(rbind(sum.table[varname,stats],sum.table.ne0[varname,stats]),output_file)
-  
-  outputToLog("Summary statistics staan in",output_file)
-}
-
 #Samenvatting data
 alg_columns <- c("melkprod","opp_totaal","melkperha")
 
-kpi_columns <- c("kpi_n","kpi_nh3","kpi_p","kpi_akkerbouw",
-  "kpi_bkg","kpi_os","kpi_blijgras","kpi_weidmk",
-  "kpi_kruid","kpi_nl","kpi_nl_waarde","kpi_gb","kpi_gb_waarde")
+kpi_columns <- c("kpi_n","kpi_nbenut","kpi_nh3","kpi_p","kpi_voedsel",
+  "kpi_bkg","kpi_os","kpi_kg","kpi_blijgras","kpi_nl","kpi_nlw",
+  "kpi_gb","kpi_gbw","kpi_weidmk")
 
-N_columns <- c("kpi_n","efficientie_N","benut_n_bed")
-P_columns <- c("kpi_p","efficientie_P","benut_p_bed")
-
-summarystats(datasetKPI,c(alg_columns,kpi_columns,N_columns,P_columns),"Summarystats.xlsx")
+summarystats(datasetKPI,c(alg_columns,kpi_columns,"weidpi_dgn","weidka_dgn"),"Summarystats.xlsx")
 
 # Plots
-makehistograms(read_excel(output_file),c(alg_columns,kpi_columns))
+makehistograms(datasetKPI,c("kpi_n","kpi_nbenut"))
+makescatterplot(datasetKPI,"kpi_n","kpi_nbenut")
+
+
+
 
 correlationplots(read_excel(output_file),c(alg_columns,kpi_columns),"Correlationplot_all.png")
 correlationplots(read_excel(output_file),kpi_columns,"Correlationplot_kpi.png")
