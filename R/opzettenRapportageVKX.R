@@ -10,8 +10,8 @@
 #toevoegenKengetallenKLW
 
 #Voor testen:
-#path_to_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Database
-#output_path = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Figuren
+#path_to_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Database/2017_2020"
+#output_path  = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Figuren"
 
 opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
@@ -24,21 +24,20 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   #Het laden van benodigde functies die ook op GIT staan.
   library(devtools)
-  scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R",
-                        "https://raw.githubusercontent.com/jureekelder/VKA/main/R/toevoegenKengetallenKLW.R")
+  scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R")
+  
   
   
   for(script in scripts_to_source){
     source_url(script)
   }
   
+  kleur_vka_rood = rgb(167, 25, 48, maxColorValue = 255)
+  kleur_vka_groen = rgb(0, 102, 67, maxColorValue = 255)
   
   #Functie voor wegschrijven van tabellen
   standard_template_path = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Figuren/template.xlsx"
   write_to_excel <- function(df){
-    
-    kleur_vka_rood = rgb(167, 25, 48, maxColorValue = 255)
-    kleur_vka_groen = rgb(0, 102, 67, maxColorValue = 255)
     
     file_name = paste("Tabel_",deparse(substitute(df)),".xlsx", sep = "")
     
@@ -71,7 +70,6 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   #Inlezen van dataset
   if(file.exists(path_to_dataset)){
     dataset_VKX = getDataInFolder(path_to_dataset)
-    dataset_VKX = toevoegenKengetallenKLW(dataset_VKX)
   } else {
     stop("Path naar dataset bestaat niet!")
   }
@@ -104,18 +102,628 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   
   parameters_bedrijf = matrix(ncol = 3, byrow = T, data = (c(
-                         "nkoe", 0, "Aantal melkkoeien [-]",
-                         "njongvee", 0, "Aantal jongvee [-]",
-                         "jvper10mk", 1, "Jongvee / 10 melkkoeien [-]",
-                         "melkprod", 0 , "Melkproductie bedrijf [-]",
-                         "melkpkoe", 0, "Melk / koe / jaar [kg]",
-                         "melkperha", 0, "Intensiteit [kg/ha]",
-                         "fpcmperha", 0, "Intensiteit [kg FPCM/ha]",
-                         "kvperbedrijf", 0, "Krachtvoerverbruik [kg]",
-                         "bodem_type_zand", 2, "Aandeel zand [%]",
-                         "bodem_type_klei", 2, "Aandeel klei [%]", #0 voor klei, 1 voor zand. Gemiddelde per jaar is dus aantal bedrijven (%).
-                         
-                         "kvper100kgmelk", 1, "Krachtvoerverbruik [kg/100 kg melk]"))) #Varkens, pluimvee)
+    "nkoe", 0, "Aantal melkkoeien [-]",
+    "njongvee", 0, "Aantal jongvee [-]",
+    "jvper10mk", 1, "Jongvee / 10 melkkoeien [-]",
+    "melkprod", 0 , "Melkproductie bedrijf [-]",
+    "melkpkoe", 0, "Melk / koe / jaar [kg]",
+    "fpcmkoejaar", 0, "FPCM / koe / jaar [kg]",
+    "vet", 2, "Vetgehalte [%]",
+    "eiwit", 2, "Eiwitgehalte [%]",
+    "ureum", 1, "Ureumgehalte [mg/100 gr]",
+    "fosfor", 0, "Fosforgehalte [mg/100 gr]",
+    "melkperha", 0, "Intensiteit [kg melk / ha]",
+    "fpcmperha", 0, "Intensiteit [kg FPCM / ha]",
+    "bodem_type_zand", 2, "Aandeel bedrijven op zandgrond [%]",
+    "bodem_type_klei", 2, "Aandeel bedrijven op kleigrond [%]")))
+  
+  if(FALSE){                    
+    dataset_VKX$jaartal_factor = as.factor(dataset_VKX$jaartal)
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = melkprod, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Melkproductie bedrijf [kg]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(0, 3000000)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary(
+        fun = mean,
+        geom = "point",
+        size = 4,
+        color = "black"
+      ) +
+      stat_summary( aes(y = melkprod, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black"
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 4, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "melkproductie.png", width = 20, height = 12, units = "cm")
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = melkperha, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Intensiteit [kg melk / ha]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(10000, 30000)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary(
+        fun = mean,
+        geom = "point",
+        size = 4,
+        color = "black"
+      ) +
+      stat_summary( aes(y = melkperha, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black"
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 4, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "intensiteit.png", width = 20, height = 12, units = "cm")
+    
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = urenweidenmelkkoeienNA, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Beweiding melkkoeien [uren]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(0, 2000)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary(
+        fun = mean,
+        geom = "point",
+        size = 4,
+        color = "black",
+        na.rm = T
+      ) +
+      stat_summary( aes(y = urenweidenmelkkoeienNA, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 4, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "beweiding.png", width = 20, height = 12, units = "cm")
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = beweidenmelkkoeienboolean*100, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Aandeel bedrijven weidegang [%]") +
+      #geom_violin(aes(color = jaartal_factor)) +
+      #geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(50, 100)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( aes(color = jaartal_factor),
+                    fun = mean,
+                    geom = "point",
+                    size = 4,
+                    #color = "black",
+                    na.rm = T
+      ) +
+      stat_summary( aes(y = beweidenmelkkoeienboolean*100, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 6, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "beweidingaandeel.png", width = 24, height = 8, units = "cm")
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = rants_geh_re, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("RE-gehalte rantsoen [g/kg ds]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(140, 180)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      ) +
+      stat_summary( aes(y = rants_geh_re, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 6, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "re_rantsoen.png", width = 20, height = 12, units = "cm")
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = melkpkoe, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Melkprodutie [kg / koe / jaar]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(6000, 13000)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      ) +
+      stat_summary( aes(y = melkpkoe, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 6, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "melkperkoe.png", width = 20, height = 12, units = "cm")
+    
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = kvper100kgmelk, fill = jaartal_factor)) +
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Krachtvoerverbruik [kg / 100 kg melk]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(15, 35)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      ) +
+      stat_summary( aes(y = kvper100kgmelk, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,1), big.mark = ".", scientific = FALSE)), size = 6, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "kv_100kg_melk.png", width = 20, height = 12, units = "cm")
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = sm_aandeel, fill = jaartal_factor)) +
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Aandeel snijmais rantsoen [%]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(0, 50)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      ) +
+      stat_summary( aes(y = sm_aandeel, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,1), big.mark = ".", scientific = FALSE)), size = 6, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "aandeel_snijmais.png", width = 20, height = 12, units = "cm")
+    
+    dataset_VKX$kv_ov_aandeel = dataset_VKX$kv_aandeel + dataset_VKX$ov_aandeel
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = kv_ov_aandeel, fill = jaartal_factor)) +
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Aandeel krachtvoer en overige bijproducten rantsoen [%]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(10, 60)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      ) +
+      stat_summary( aes(y = kv_ov_aandeel, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,1), big.mark = ".", scientific = FALSE)), size = 6, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "aandeel_kv_overig.png", width = 20, height = 12, units = "cm")
+    
+    dataset_VKX$gk_gr_aandeel = dataset_VKX$gr_aandeel + dataset_VKX$gk_aandeel
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = gk_gr_aandeel, fill = jaartal_factor)) +
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Aandeel weidegras en graskuil rantsoen [%]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(20, 60)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      ) +
+      stat_summary( aes(y = gk_gr_aandeel, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,1), big.mark = ".", scientific = FALSE)), size = 6, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "aandeel_vg_gk.png", width = 20, height = 12, units = "cm")
+    
+    
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = opb_graspr_ds, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Opbrengst productiegrasland [kg ds / ha]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(4000, 16000)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      ) +
+      stat_summary( aes(y = opb_graspr_ds, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "opb_gras_pr.png", width = 20, height = 12, units = "cm")
+    
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = opb_mais_ds, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Opbrengst mais [kg ds / ha]") +
+      geom_violin(aes(color = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(6000, 26000)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      ) +
+      stat_summary( aes(y = opb_mais_ds, group =1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    na.rm = T
+      ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1)
+    
+    print(plot)
+    ggsave( "opb_mais.png", width = 20, height = 12, units = "cm")
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = verl_bodbal1_ha, fill = grondsoort, color = grondsoort)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Stikstofbodemoverschot [kg N/ha]") +
+      geom_violin(aes(fill = grondsoort)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      #theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(0, 250)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean, aes(group = grondsoort), position = position_dodge(.9) ,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      )   +
+      stat_summary( aes(y = verl_bodbal1_ha, group = grondsoort, linetype  = grondsoort),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    
+                    na.rm = T , position = position_dodge(.9) 
+      ) +
+      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1, position = position_dodge(.9) )
+    
+    print(plot)
+    ggsave( "n_overschot.png", width = 20, height = 12, units = "cm")
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = verl_bodbal2_ha, fill = grondsoort, color = grondsoort)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Fosfaatbodemoverschot [kg P2O5/ha]") +
+      geom_violin(aes(fill = grondsoort)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      #theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(-40, 40)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean, aes(group = grondsoort), position = position_dodge(.9) ,
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      )   +
+      stat_summary( aes(y = verl_bodbal2_ha, group = grondsoort, linetype  = grondsoort),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    
+                    na.rm = T , position = position_dodge(.9) 
+      ) +
+      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1, position = position_dodge(.9) )
+    
+    print(plot)
+    ggsave( "p_overschot.png", width = 20, height = 12, units = "cm")
+    
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = dzh_nh3_bedrha, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Ammoniakemissie [kg NH3/ha]") +
+      geom_violin(aes(fill = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(30, 90)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean, 
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      )   +
+      stat_summary( aes(y = dzh_nh3_bedrha, group = 1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    
+                    na.rm = T , position = position_dodge(.9) 
+      ) +
+      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1 )
+    
+    print(plot)
+    ggsave( "ammoniak.png", width = 20, height = 12, units = "cm")
+    
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = dzh_nh3_bedrha * opp_totaal, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Ammoniakemissie [kg NH3]") +
+      geom_violin(aes(fill = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(1000, 6000)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean, 
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      )   +
+      stat_summary( aes(y = dzh_nh3_bedrha * opp_totaal, group = 1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    
+                    na.rm = T , position = position_dodge(.9) 
+      ) +
+      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1 )
+    
+    print(plot)
+    ggsave( "ammoniak_totaal.png", width = 20, height = 12, units = "cm")
+    
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = dzh_co2_melkprod, fill = jaartal_factor, color = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("BKG emissie [g CO2-eq / FPCM]") +
+      geom_violin(aes(fill = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(900, 1400)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean, 
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      )   +
+      stat_summary( aes(y = dzh_co2_melkprod, group = 1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    
+                    na.rm = T , position = position_dodge(.9) 
+      ) +
+      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1 )
+    
+    print(plot)
+    
+    ggsave( "bkg.png", width = 20, height = 12, units = "cm")
+    
+    
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = pceigen_n, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Eiwit eigen land [%]") +
+      geom_violin(aes(fill = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(25, 100)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean, 
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      )   +
+      stat_summary( aes(y = pceigen_n, group = 1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    
+                    na.rm = T , position = position_dodge(.9) 
+      ) +
+      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1 )
+    
+    print(plot)
+    ggsave( "eigen_n.png", width = 20, height = 12, units = "cm")
+    
+    plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = pceigen_n_buurt, fill = jaartal_factor)) +
+      
+      theme_bw() +
+      xlab("Jaartal") +
+      ylab("Eiwit eigen land + buurtaankoop [%]") +
+      geom_violin(aes(fill = jaartal_factor)) +
+      geom_sina(color = "lightgrey", size = 0.5) +
+      theme(legend.position = "none") +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+      coord_cartesian(ylim = c(25, 100)) +
+      #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+      stat_summary( fun = mean, 
+                    geom = "point",
+                    size = 4,
+                    color = "black",
+                    na.rm = T
+      )   +
+      stat_summary( fun = mean,  aes(y=pceigen_n),
+                    geom = "point",
+                    size = 4,
+                    color = "red",
+                    na.rm = T
+      )   +
+      stat_summary( aes(y = pceigen_n_buurt, group = 1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "black",
+                    
+                    na.rm = T , position = position_dodge(.9) 
+      ) + 
+      stat_summary( aes(y = pceigen_n, group = 1),
+                    fun = mean,
+                    geom = "line",
+                    size = 1,
+                    color = "red",
+                    
+                    na.rm = T , position = position_dodge(.9) 
+      ) +
+      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1 )+
+      stat_summary (fun = mean, geom = "text", aes(y = pceigen_n,label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "red", vjust = 2 )
+    
+    print(plot)
+    ggsave( "eigen_n_buurt.png", width = 20, height = 12, units = "cm")
+    
+  
+  
+  data_re = dataset_VKX %>%
+    select(jaartal_factor,
+           gr_geh_re,
+           gk_geh_re,
+           sm_geh_re,
+           ov_geh_re,
+           kv_geh_re,
+           rants_geh_re) %>% dplyr::group_by(jaartal_factor) %>% dplyr::summarise_all(mean, na.rm=T)
+  
+  colnames(data_re)[which(colnames(data_re) == "gr_geh_re")] = "Weidegras"
+  colnames(data_re)[which(colnames(data_re) == "gk_geh_re")] = "Kuilgras"
+  colnames(data_re)[which(colnames(data_re) == "sm_geh_re")] = "Snijmais"
+  colnames(data_re)[which(colnames(data_re) == "ov_geh_re")] = "Overig"
+  colnames(data_re)[which(colnames(data_re) == "kv_geh_re")] = "Krachtvoer"
+  colnames(data_re)[which(colnames(data_re) == "rants_geh_re")] = "Rantsoen"
+  
+  data_re_long = pivot_longer(data_re,
+                              cols = c(Weidegras, Kuilgras, Snijmais, Overig, Krachtvoer, Rantsoen))
+  
+  plot = ggplot(data = data_re_long, aes(x= jaartal_factor, y = value, color = name, group = name)) +
+    geom_point(size = 5) +
+    geom_line(size = 1) +
+    theme_bw() +
+    xlab("Jaartal") +
+    ylab("RE-gehalte [g/kg ds]") +
+    theme(legend.title = element_blank(), legend.position = "top") 
+  print(plot)
+  ggsave( "re_gehaltes_producten.png", width = 20, height = 12, units = "cm")
+  
+  }
   
   parameters_productie = matrix(ncol = 3, byrow = T, data = c(
     
@@ -129,33 +737,26 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   ))
   
   
-  parameters_areaal = c("opp_totaal",
-                       "oppgras",
-                       "oppblijgras",
-                       "opp_prgras",
-                       "oppklaver",
-                       "pcklaver",
-                       
-                       "opp332en335",
-                       "opp_natuur",
-                       "opp_mais",
-                       "oppcontinu_b",
-                       
-                       "oppmais",
-                       "oppoverig")
+  parameters_areaal = matrix(ncol = 3, byrow = T, data = c("opp_totaal", 1, "Oppervlakte [ha]",
+                                                           "opp_prgras", 1, "Oppervlakte productiegrasland [ha]",
+                                                           "opp_natuur", 1, "Oppervlakte natuur [ha]",
+                                                           "dzh_blijgras_aand", 1, "Aandeel blijvend grasland [%]",
+                                                           "oppklaver", 1, "Oppervlakte percelen met klaver [ha]",
+                                                           "opp_mais", 1, "Oppervlakte mais [ha]",
+                                                           "oppoverig", 1, "Oppervlakte overig [ha]"))
   
   parameters_vee = matrix(ncol = 3, byrow = T , data = c(
-                     "efficientie_N", 2, "Stikstof efficientie veestapel [%]",
-                     "efficientie_P", 2, "Fosfaat efficientie veestapel [%]",
-                     "voereff_melk", 1, "Voerefficiëntie [kg melk / kg ds]",
-                     "voereff_fpcm", 1, "Voerefficiëntie [kg fpcm / kg ds]",
-                     "urenweidenmelkkoeienNA", 0, "Beweiding weidebedrijven [uren]",
-                     "beweidenmelkkoeienboolean", 2, "Aandeel bedrijven beweiding [%]",
-                     "zstvdagenNA", 0, "Zomerstalvoedering [dagen]",
-                     "zstvdagenboolean", 2, "Aandeel bedrijven zomerstalvoedering [%]"
+    "efficientie_N", 1, "Stikstofefficiëntie veestapel [%]",
+    "efficientie_P", 1, "Fosfaatefficiëntie veestapel [%]",
+    "voereff_melk", 2, "Voerefficiëntie [kg melk / kg ds]",
+    "voereff_fpcm", 2, "Voerefficiëntie [kg fpcm / kg ds]",
+    "urenweidenmelkkoeienNA", 0, "Beweiding weidebedrijven [uren]",
+    "beweidenmelkkoeienboolean", 2, "Aandeel bedrijven beweiding [%]",
+    "zstvdagenNA", 0, "Zomerstalvoedering [dagen]",
+    "zstvdagenboolean", 2, "Aandeel bedrijven zomerstalvoedering [%]"
   )
-
-                     
+  
+  
   )
   
   parameters_benutting = c("benut_n_bed",
@@ -164,7 +765,7 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                            "benut_p_bed",
                            "benut_p_vee",
                            "benut_p_bod"
-                          
+                           
   )
   
   parameters_rantsoen = c("rants_verbruik",
@@ -199,16 +800,16 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                           "rantsoen_pcre_kvmp"
                           
   )
-                       
-
+  
+  
   
   parameters_mest = c("N_generiek", #lage N_generiek -->  lage gebrnorm1. is dit reeel?
                       "P_generiek",
                       "dmgraasafv_ton",
                       "dmgraasafv_n",
                       "dmgraasafv_p2o5")
-                      
-
+  
+  
   parameters_bekalken = c("limemais",
                           "limeovbouw",
                           "limegras",
@@ -255,7 +856,7 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     "aankoop_aanleg_kv_hoev",
     "akvoer_n",
     "akvoer_P"
-
+    
     
     
     
@@ -351,7 +952,7 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                              "aanleg_sm_vem",
                              "aanleg_sm_re",
                              "aanleg_sm_p")
-
+  
   
   parameters_planet_proof = c("PP_beweiding",
                               "PP_eiwit_van_eigen_land",
@@ -362,17 +963,57 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   
   
-  parameters_broeikasgassen = c("dzh_co2_melkvee",
-                               "dzh_co2_pensferm", 
-                               "dzh_co2_mestopsl", 
-                               "dzh_co2_voerprod", 
-                               "dzh_co2_energie", 
-                               "dzh_co2_aanvoer")
+  parameters_broeikasgassen = matrix(ncol = 3, byrow = T, data = c("dzh_co2_melkprod", 0, "Bedrijf [g CO2-eq/kg FPCM]",
+                                                                   "dzh_co2_pensferm", 0, "Pens [g CO2-eq/kg FPCM]", 
+                                                                   "dzh_co2_mestopsl", 0, "Mest [g CO2-eq/kg FPCM]",
+                                                                   "dzh_co2_voerprod", 0, "Voerproductie [g CO2-eq/kg FPCM]",
+                                                                   "dzh_co2_energie", 0, "Energie [g CO2-eq/kg FPCM]",
+                                                                   "dzh_co2_aanvoer", 0, "Aanvoer [g CO2-eq/kg FPCM]"))
   
   
-
+  parameters_broeikasgassen_extra = matrix(ncol = 3, byrow = T, data = c(
+  "dzh_co2_pensferm", 0, "Pens [g CO2-eq/kg FPCM]",
+  "co2_pens_vg", 0 , "Vers gras",
+  "co2_pens_gk", 0 , "Graskuil",
+  "co2_pens_sm", 0 , "Snijmais",
+  "co2_pens_nt", 0 , "Bijproducten",
+  "co2_pens_kv", 0 , "Krachtvoer",
+  "co2_pens_mp", 0 , "Melkproducten",
+  "dzh_co2_mestopsl", 0, "Mest [g CO2-eq/kg FPCM]",
+  "co2_stal_ch4_m", 0 , "Methaan mest",
+  "co2_stal_n2o_d", 0 , "Lachgas",
+  "co2_stal_n2o_i", 0 , "Overig mest",
+  "dzh_co2_voerprod", 0, "Voerproductie [g CO2-eq/kg FPCM]",
+  "co2_voer_n2o_wm", 0 , "Weidemest",
+  "co2_voer_n2o_km", 0 , "Kunstmest",
+  "co2_voer_n20_om", 0 , "Overig organisch",
+  "co2_voer_n2o_ve", 0 , "Lachgas veen",
+  "co2_voer_overig", 0 , "Overig",
+  "dzh_co2_energie", 0, "Energie [g CO2-eq/kg FPCM]",
+  "co2_ene_elek", 0 , "Elektriciteit",
+  "co2_ene_dies", 0 , "Diesel",
+  "co2_ene_ngas", 0 , "Gas",
+  "co2_ene_prop", 0 , "Propaan",
+  "co2_ene_olie", 0 , "Olie",
+  "co2_ene_prod", 0 , "Productie",
+  "dzh_co2_aanvoer", 0, "Aanvoer [g CO2-eq/kg FPCM]",
+  "co2_aanv_mech", 0 , "Productie werktuigen",
+  "co2_aanv_drog", 0 , "Voer drogen",
+  "co2_aanv_gras", 0 , "Gras",
+  "co2_aanv_mais", 0 , "Mais",
+  "co2_aanv_ovbp", 0 , "Overig voer",
+  "co2_aanv_kvmp", 0 , "Krachtvoer en melkpoeder",
+  "co2_aanv_mest", 0 , "Organische, en kunstmest",
+  "co2_aanv_vee", 0 , "Vee",
+  "co2_aanv_water", 0 , "Water",
+  "co2_aanv_stroo", 0 , "Strooisel",
+  "co2_aanv_gwbm", 0 , "Gewasbescherming",
+  "co2_aanv_afdek", 0 , "Plastic"))
   
-                      
+  
+  
+  
+  
   
   data_KLW_VKX_Compleet = dataset_VKX
   
@@ -435,9 +1076,8 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   
   
-
+  
   dataset_VKX_gemiddeld_bedrijf = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_bedrijf)
-  dataset_VKX_gemiddeld_bedrijf = dataset_VKX_gemiddeld_bedrijf %>% dplyr::mutate(`Percentage bedrijven zand [%]` = 100 * `Percentage bedrijven zand [%]`)
   write_to_excel(dataset_VKX_gemiddeld_bedrijf)
   
   dataset_VKX_gemiddeld_productie = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_productie)
@@ -446,9 +1086,78 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   dataset_VKX_gemiddeld_vee = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_vee)
   write_to_excel(dataset_VKX_gemiddeld_vee)
   
+  dataset_VKX_gemiddeld_areaal = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_areaal)
+  write_to_excel(dataset_VKX_gemiddeld_areaal)
+  
+  dataset_VKX_gemiddeld_bkg = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_broeikasgassen)
+  write_to_excel(dataset_VKX_gemiddeld_bkg)
+  
+  dataset_VKX_gemiddeld_bkg_extra = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_broeikasgassen_extra)
+  write_to_excel(dataset_VKX_gemiddeld_bkg_extra)
   
   
-    
+  plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = dzh_co2_melkprod, fill = jaartal_factor, color = jaartal_factor)) +
+    theme_bw() +
+    xlab("Jaartal") +
+    ylab("BKG emissie [g CO2-eq / FPCM]") +
+    geom_violin(aes(fill = jaartal_factor)) +
+    geom_sina(color = "lightgrey", size = 0.5) +
+    theme(legend.position = "none") +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(900, 1400)) +
+    #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+    stat_summary( fun = mean, 
+                  geom = "point",
+                  size = 4,
+                  color = "black",
+                  na.rm = T
+    )   +
+    stat_summary( aes(y = dzh_co2_melkprod, group = 1),
+                  fun = mean,
+                  geom = "line",
+                  size = 1,
+                  color = "black",
+                  
+                  na.rm = T , position = position_dodge(.9) 
+    ) +
+    stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1 )
+  print(plot)
+  ggsave( "bkg.png", width = 20, height = 12, units = "cm")
+  
+  
+  plot = ggplot(data = dataset_VKX, aes(x = kv_aandeel, y = dzh_co2_aanvoer, color = jaartal_factor)) +
+    theme_bw() +
+    xlab("Aandeel krachtvoer rantsoen [%]") +
+    ylab("BKG emissie aanvoer [g CO2-eq / FPCM]") +
+    geom_point(size = 0.5) +
+    geom_smooth(method = "lm", se = FALSE) +
+    #theme(legend.position = "none") +
+    guides(color=guide_legend(title = "Jaartal"))+
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(100, 700), xlim=c(15,40)) 
+  print(plot)
+  ggsave( "kv_co2.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_VKX, aes(x = melkperha, y = dzh_co2_melkprod, color = jaartal_factor)) +
+    theme_bw() +
+    xlab("Intensiteit [kg melk / ha ]") +
+    ylab("BKG emissie bedrijf [g CO2-eq / FPCM]") +
+    geom_point(size = 0.5) +
+    geom_smooth(method = "lm", se = FALSE) +
+    #theme(legend.position = "none") +
+    guides(color=guide_legend(title = "Jaartal"))+
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(900, 1300), xlim = c(10000,30000)) 
+  print(plot)
+  ggsave( "co2_int.png", width = 20, height = 12, units = "cm")
+  
+  #Laagste bedrijven:
+  bkg_low = dataset_VKX %>% group_by(Lidmaatschapsnummer) %>% 
+    dplyr::summarise(bkg_mean = mean(dzh_co2_melkprod)) %>% 
+    dplyr::arrange((bkg_mean)) %>%
+    dplyr::top_n(n = -20)
+  
+  
   gg_color_hue <- function(n) {
     hues = seq(15, 375, length = n + 1)
     hcl(h = hues, l = 65, c = 100)[1:n]
