@@ -3,10 +3,9 @@
 #Script voor het maken van produceren van Voerwinst
 #Idee gebaseerd op Marcel van Ittersum (mm.vanittersum@countus.nl) en Jaap Gielen (jaap.gielen@demarke.eu)
 
-
 #INPUTS
 #path_dataset --> string met path naar dataset KLW
-#path_input_xml --> string met path naar mappen met input.xml files voor KLW. Hierop een script loslaten om bijproducten in te lezen.
+#path_xml_files --> string met path naar mappen met input.xml files voor KLW. Hierop een script loslaten om bijproducten in te lezen.
 #bijproducten_algmeen --> boolean: moeten de waardes van krachtvoer en bijproducten uit rantsoenberekening gehaald worden of specifiek uit input xml.
 
 #BENODIGDE FUNCTIES:
@@ -15,19 +14,24 @@
 
 
 #Voor testen:
-#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020"
-#path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Database/2017_2020"
+#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXML"
+#path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Dataset_VKA_2018_2020"
 #output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
 
 
-berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, output_folder = output_folder, bijproducten_algemeen = TRUE){
+berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder, bijproducten_algemeen = TRUE){
+  
+  output_file_string = "zonder_XML"
   
   if(!bijproducten_algemeen){
-    if(is.null(path_input_xml)){
+    
+    output_file_string = "met_XML"
+    
+    if(is.null(path_xml_files)){
       stop("Bijproducten moeten uit input XML komen maar path is niet opgegeven")
     }
     
-    if(!file.exists(path_input_xml)){
+    if(!file.exists(path_xml_files)){
       stop("Path naar input XML folder bestaat niet")
     }
   }
@@ -125,6 +129,7 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, output_folder 
   procent_bedrijfsspecifiek_krachtvoer = 1
   norm_prijs_krachtvoer = 27.50
   toeslag_mineralen = 0.4875
+  prijs_mineralen = 0.600 # per kg product
   
 
   ds_gehalte_krachtvoer = 0.897
@@ -191,6 +196,7 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, output_folder 
                      "kv_geh_re",
                      "weidka_dgn",
                      "weidpi_dgn",
+                    
                      #Parameters voor vergelijkingen
                      "pceigen_n",
                      "verl_bodbal1_ha",
@@ -329,6 +335,7 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, output_folder 
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_gras_totaal = ton_dm_grasland * kosten_dm_gras + (graspr_kmst_kgn * kosten_kmst_n + graspr_kmst_kgp2o5 * kosten_kmst_p + kosten_overig_gras) * oppgras)
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_gras_totaal_kg_ds = kosten_gras_totaal / opb_gras_totaal_ds)
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_mais_totaal = ton_dm_maisland * kosten_dm_bouw + (mais_kmst_kgn * kosten_kmst_n + mais_kmst_kgp2o5 * kosten_kmst_p + kosten_overig_mais) * opp_mais)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_mais_totaal = ifelse(kosten_mais_totaal > 1, kosten_mais_totaal, 0))
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_mais_totaal_kg_ds = kosten_mais_totaal / opb_mais_totaal_ds)
   
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(grasproductie_graskuil = opb_gras_totaal_ds - gr_verbruik)
@@ -361,8 +368,14 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, output_folder 
     dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_totaal = (kosten_bijproducten_ton_ds * ov_verbruik_kuil / 1000))
     
     #Kosten krachtvoer
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil_kg_product = kv_verbruik_kuil / ds_gehalte_krachtvoer)
+    #HOE STAAT BIJ ANDERE JAREN HET GEHALTE KRACHTVOER?
+    
+    #dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil_kg_product = kv_verbruik_kuil / ds_gehalte_krachtvoer)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil_kg_product = kv_verbruik_kuil / 1)
+    
+    #Bedrijfsspecifieke kv prijs is gebaseerd op ds.
     dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_prijs_bedrijf = ((((kv_geh_vem/1000 * prijs_kvem_krachtvoer) + (((kv_geh_re * correctie_re_dve_krachtvoer) / 1000) * prijs_dve_krachtvoer)) * correctiefactor_krachtvoer * procent_bedrijfsspecifiek_krachtvoer) + (norm_prijs_krachtvoer * (1-procent_bedrijfsspecifiek_krachtvoer))) + toeslag_mineralen)
+    
     dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_kosten_totaal = (kv_verbruik_kuil_kg_product * kv_prijs_bedrijf / 100))
   
     #Kosten melkpoeder  
@@ -371,7 +384,7 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, output_folder 
     
   } else {
     
-    dataset_xml =  XMLtoDataFrame(path_input_xml)
+    dataset_xml =  XMLtoDataFrame(path_xml_files)
     
     #Zorg dat numerieke kolommen als numeriek worden opgeslagen!
     is_all_numeric <- function(x) {
@@ -389,16 +402,17 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, output_folder 
     #Hoe zit het met ds (zijn de gehalten uit input XML in ds of kg product?)
     
     #HOOG VEM BIJPRODUCTEN
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_hoog_vem_totaal = verbruik_Overigrvbp_hoog * (verbruik_re_Overigrvbp_hoog * correctie_re_dve_bijproduct * prijs_dve_bijproduct * procent_voederwaarde_prijs_bijproduct))
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_hoog_vem_totaal = verbruik_Overigrvbp_hoog / 1000 * (verbruik_re_Overigrvbp_hoog * correctie_re_dve_bijproduct * prijs_dve_bijproduct + verbruik_vem_Overigrvbp_hoog * prijs_kvem_bijproduct) / 100 * procent_voederwaarde_prijs_bijproduct)
     #LAAG VEM BIJPRODUCTEN
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_laag_vem_totaal = verbruik_Overigrvbp_laag * ds_gehalte_overig_ruwvoer * prijs_overig_ruwvoer_ds)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_laag_vem_totaal = verbruik_Overigrvbp_laag * prijs_overig_ruwvoer_ds)
     
     dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_totaal = kosten_bijproducten_hoog_vem_totaal + kosten_bijproducten_laag_vem_totaal )
     
     #HOOG VEM KRACHTVOER
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_hoog_vem_totaal = verbruik_Krachtvoer_hoog * (verbruik_re_Krachtvoer_hoog * correctie_re_dve_krachtvoer * prijs_dve_krachtvoer))
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_hoog_vem_totaal = verbruik_Krachtvoer_hoog / 1000 * (verbruik_re_Krachtvoer_hoog * correctie_re_dve_krachtvoer * prijs_dve_krachtvoer + verbruik_vem_Overigrvbp_hoog * prijs_kvem_krachtvoer) / 100 * correctiefactor_krachtvoer)
+    
     #LAAG VEM KRACHTVOER --> MINERALEN
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_laag_vem_totaal = 0) #verbruik_Krachtvoer_laag * ds_gehalte_ * prijs_overig_ruwvoer_ds)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_laag_vem_totaal = verbruik_Krachtvoer_laag * prijs_mineralen) #verbruik_Krachtvoer_laag * ds_gehalte_ * prijs_overig_ruwvoer_ds)
     
     dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_kosten_totaal = kosten_krachtvoer_hoog_vem_totaal + kosten_krachtvoer_laag_vem_totaal )
     
@@ -540,14 +554,19 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, output_folder 
   print(plot)
   ggsave( "voerwinst_ha_verdelig.png", width = 20, height = 12, units = "cm")
   
-  write.xlsx(dataset_voerwinst, "data_voerwinst.xlsx", asTable = T, overwrite = T)
+  write.xlsx(dataset_voerwinst, paste("data_voerwinst_",output_file_string,".xlsx",sep=""), asTable = T, overwrite = T)
   
   
   return(as.data.frame(dataset_voerwinst))
   
 }
 
-output = berekenVoerwinst(path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/Dataset_VKA_2018_2020", path_input_xml = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel", bijproducten_algemeen = TRUE)
+#Voor testen:
+if(TRUE){
+path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXML"
+path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Dataset_VKA_2018_2020"
+output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
 
-setwd("C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/resultaat_Voerwinst")
-write.xlsx((output), "data_voerwinst.xlsx", asTable = T, overwrite = T)
+output = berekenVoerwinst(path_dataset = path_dataset, path_xml_files = path_xml_files, output_folder = output_folder, bijproducten_algemeen = F)
+
+}

@@ -5,6 +5,9 @@
 #INPUTS
 #path_xml_files --> string met path naar mappen met input XML files vanuit KLW.
 
+#voor testen
+#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXMLtest"
+
 XMLtoDataFrame <- function(path_xml_files){
   
   #Libraries
@@ -111,7 +114,7 @@ XMLtoDataFrame <- function(path_xml_files){
   dataset = dataset %>% dplyr::mutate_if(is_all_numeric, as.numeric)
   
   #Splitsen op basis van VEM 850 a 900
-  dataset = dataset %>% dplyr::mutate(vem_categorie = ifelse(vem > 850, "hoog", "laag"))
+  dataset = dataset %>% dplyr::mutate(vem_categorie = ifelse(vem > 750, "hoog", "laag"))
   
   dataset_xml_samengevat = dataset %>% dplyr::group_by(kvk_nummer, jaartal, feedtype, objecttype, vem_categorie) %>% dplyr::summarise(vem_gewogen = weighted.mean(vem, hoev), re_gewogen = weighted.mean(re, hoev), sum_product = sum(hoev, na.rm = T))
   
@@ -133,8 +136,12 @@ XMLtoDataFrame <- function(path_xml_files){
   
 }
 
-#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020 enkel"
-#data_xml_test = XMLtoDataFrame(path_xml_files) 
+
+if(TRUE){
+  path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXMLtest"
+  data_xml_test = XMLtoDataFrame(path_xml_files) 
+}
+
 
 
 
