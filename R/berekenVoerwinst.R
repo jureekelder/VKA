@@ -16,10 +16,11 @@
 
 #Voor testen:
 #path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/KLW 2020"
-#path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/dataset_Voerwinst"
+#path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Database/2017_2020"
+#output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
 
 
-berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_algemeen = FALSE){
+berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, output_folder = output_folder, bijproducten_algemeen = TRUE){
   
   if(!bijproducten_algemeen){
     if(is.null(path_input_xml)){
@@ -51,6 +52,14 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
   } else {
     stop("Path naar dataset bestaat niet!")
   }
+  
+  #Opzetten output path
+  if(file.exists(output_folder)){
+    setwd(output_folder)
+  } else {
+    warning("Path naar voor output bestaat niet!")
+  }
+  
   
   #Parameters
   prijs_vet = 293
@@ -181,7 +190,14 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
                      "kv_geh_vem",
                      "kv_geh_re",
                      "weidka_dgn",
-                     "weidpi_dgn"
+                     "weidpi_dgn",
+                     #Parameters voor vergelijkingen
+                     "pceigen_n",
+                     "verl_bodbal1_ha",
+                     "kvper100kgmelk",
+                     "rants_geh_re",
+                     "dzh_co2_melkprod",
+                     "em_nh3_tonmelk"
                      
                      )
   
@@ -401,6 +417,131 @@ berekenVoerwinst <- function(path_dataset, path_input_xml = NULL, bijproducten_a
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(voerwinst_100kgmelk = round(voerwinst_totaal / melk_bedr * 100, 2))
   
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(saldo_ruwvoer_verkoop = saldo_verkoop_overschot_gras + saldo_verkoop_overschot_mais)
+  
+  library(ggplot2)
+  library(ggforce)
+  
+  plot = ggplot(data = dataset_voerwinst, aes(y = voerwinst_100kgmelk, x = (melk_bedr/opp_totaal), color = as.factor(jaartal)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    xlab("Intensiteit [kg melk / ha]") +
+    ylab("Voerwinst [euro / 100 kg melk]") +
+    xlim(8000,35000)
+  print(plot)
+  ggsave( "intensiteit_vs_voerwinst.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = pceigen_n, color = as.factor(jaartal)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    xlab("Voerwinst [euro / 100 kg melk]") +
+    ylab("Aandeel eiwit van eigen land [%]") +
+    xlim(10,30)
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_eiwit_eigen_land.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_ha, y = pceigen_n, color = as.factor(jaartal)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    xlab("Voerwinst [euro / ha]") +
+    ylab("Aandeel eiwit van eigen land [%]") 
+  print(plot)
+  ggsave( "voerwinst_ha_eiwit_eigen_land.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = verl_bodbal1_ha, color = as.factor(jaartal)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    xlab("Voerwinst [euro / 100 kg melk]") +
+    ylab("Stikstofbodemoverschot [kg N / ha]") +
+    xlim(10,30)
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_n_overschot.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_ha, y = verl_bodbal1_ha, color = as.factor(jaartal)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("Stikstofbodemoverschot [kg N / ha]") +
+    xlab("Voerwinst [euro / ha]") 
+  print(plot)
+  ggsave( "voerwinst_ha_n_overschot.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = kvper100kgmelk, color = as.factor(jaartal)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("Krachtvoerverbruik [kg / 100 kg melk]") +
+    xlab("Voerwinst [euro / 100 kg melk]") 
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_kvverbruik.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = rants_geh_re, color = as.factor(jaartal)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("RE-gehalte rantsoen [g/kg ds]") +
+    xlab("Voerwinst [euro / 100 kg melk]") 
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_rantsoenre.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = dzh_co2_melkprod, color = as.factor(jaartal)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("BKG emissies [g CO2-eq/kg FPCM]") +
+    xlab("Voerwinst [euro / 100 kg melk]") 
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_bkg.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = em_nh3_tonmelk, color = as.factor(jaartal)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("NH3 emissie [kg / 1000 kg melk]") +
+    xlab("Voerwinst [euro / 100 kg melk]") 
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_ammoniak.png", width = 20, height = 12, units = "cm")
+  
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = as.factor(jaartal), y = voerwinst_100kgmelk)) +
+    theme_bw() +
+    geom_violin(aes(fill = as.factor(jaartal))) +
+    geom_sina(color = "lightgrey", size = 0.5) +
+    theme(legend.position = "none") +
+    ylab("Voerwinst [euro / 100 kg melk]") +
+    xlab("Jaartal") +
+    stat_summary( fun = mean, 
+                  geom = "point",
+                  size = 4,
+                  color = "black",
+                  na.rm = T
+    ) +
+    stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,1), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1 )
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_verdelig.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst, aes(x = as.factor(jaartal), y = voerwinst_ha)) +
+    theme_bw() +
+    geom_violin(aes(fill = as.factor(jaartal))) +
+    geom_sina(color = "lightgrey", size = 0.5) +
+    theme(legend.position = "none") +
+    ylab("Voerwinst [euro / 100 kg melk]") +
+    xlab("Jaartal") +
+    stat_summary( fun = mean, 
+                  geom = "point",
+                  size = 4,
+                  color = "black",
+                  na.rm = T
+    ) +
+    stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1 )
+  print(plot)
+  ggsave( "voerwinst_ha_verdelig.png", width = 20, height = 12, units = "cm")
+  
+  write.xlsx(dataset_voerwinst, "data_voerwinst.xlsx", asTable = T, overwrite = T)
+  
   
   return(as.data.frame(dataset_voerwinst))
   

@@ -14,10 +14,10 @@
 #
 
 #Voor testen:
-#path_ledendata = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/Ledenlijst"
-#path_dumpfiles = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/KLW_DUMP"
-#output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA"
-#opzettenDataBaseVKX(type = "VKA", 2013, 2020, path_ledendata = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/Ledenlijst", path_dumpfiles = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA/KLW_DUMP", output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKA")
+#path_ledendata = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKO/Ledenlijst"
+#path_dumpfiles = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKO/KLW_DUMP"
+#output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/VKO"
+#opzettenDataBaseVKX(type = "VKO", 2016, 2020, path_ledendata = path_ledendata, path_dumpfiles = path_dumpfiles, output_folder = output_folder)
 
 #BENODIGDE FUNCTIES:
 #getDataInFolder
