@@ -5,6 +5,20 @@
 #INPUTS
 #database_klw --> dataframe met KLW kengetaleln
 
+#TOELICHTING
+#Veel kengetallen hebben niet op iedere boer betrekking, en kunnen zo verkeerde resultaten opleveren als het gemiddelde wordt bepaald.
+#Voorbeeld: niet iedere boer heeft vers gras in het rantsoen. Het kengetal "gr_aandeel" zal dan 0 zijn.
+#Als dan het gemiddelde "gr_aandeel" over de hele dataset wordt berekend zitten daar eigenlijk 2 groepen in, de groep die wél vers gras voert, 
+#en de groep die geen vers gras voert. Het gemiddelde kan dan een vertekend beeld geven.
+
+#In dit script worden voor dergelijke kengetallen wat extra kengetallen toegevoegd:
+#<kengetal>NA --> hier wordt er een kengetal toegevoegd waarbij de waarde "0" (of een andere arbitrair getal) wordt gebruikt als drempelwaarde. 
+#Bij bijvoorbeeld vers gras, wordt het kengetal gr_aandeelNA gelijk gestelt aan "gr_aandeel" als de boer vers gras voert, en anders ("gr_aandeel" = 0) wordt het NA. 
+#Waarom? Dan kan er makkelijk met functies worden gewerkt zoals mean(., na.rm = T). Zo kan snel het gemiddelde worden berekend van de groep die er écht toe doet.
+
+#Daarbij is het interessant om te weten wat het aandeel [%] is van bedrijven dat bijvoorbeeld vers gras voert. Daarvoor wordt het volgend kengetal toegevoegd:
+#<kengetal>boolean --> dit getal wordt simpelweg "1" of "0". Als een bedrijf bijvoorbeeld vers gras voert wordt het een "1", en anders een "0".
+#Door al deze enen en nullen te middelen geeft dat het aandeel van de bedrijven dat het wél of niet toepast.
 
 
 toevoegenKengetallenKLW <- function(database_klw){
@@ -56,6 +70,53 @@ toevoegenKengetallenKLW <- function(database_klw){
   data$gveperha = data$gve_melkvee / data$opp_totaal
   data$fpcmperha = data$bkg_prod_fpcm / data$opp_totaal
   
+  #OPPERVLAKTES
+  data$opp_maisNA = ifelse(data$opp_mais > 0, data$opp_mais, NA)
+  data$opp_maisboolean = ifelse(is.na(data$opp_maisNA),0,1)
+  data$opp_natuurNA = ifelse(data$opp_natuur > 0, data$opp_natuur, NA)
+  data$opp_natuurboolean = ifelse(is.na(data$opp_natuurNA),0,1)
+  data$opp_overigNA = ifelse(data$opp_overig > 0, data$opp_overig, NA)
+  data$opp_overigboolean = ifelse(is.na(data$opp_overigNA),0,1)
+  
+  #RANTSOEN
+  data$ov_mp_aandeel = data$ov_aandeel + data$mp_aandeel
+  
+  data$gr_aandeelNA = ifelse(data$gr_aandeel > 0, data$gr_aandeel, NA)
+  data$gr_aandeelboolean = ifelse(is.na(data$gr_aandeelNA),0,1)
+  
+  data$sm_aandeelNA = ifelse(data$sm_aandeel > 0, data$sm_aandeel, NA)
+  data$sm_aandeelboolean = ifelse(is.na(data$sm_aandeelNA),0,1)
+  
+  data$ov_mp_aandeel_aandeelNA = ifelse(data$ov_mp_aandeel > 0, data$ov_mp_aandeel, NA)
+  data$ov_mp_aandeelboolean = ifelse(is.na( data$ov_mp_aandeelNA),0,1)
+  
+  #AANKOOP EN AANDELEN RANTSOEN
+  
+  data$aankoop_aanleg_gk_hoevNA = ifelse(data$aankoop_aanleg_gk_hoev > 0 , data$aankoop_aanleg_gk_hoev, NA)
+  data$aankoop_aanleg_gk_hoevboolean = ifelse(is.na(data$aankoop_aanleg_gk_hoevNA), 0,1)
+  
+  data$aankoop_aanleg_sm_hoevNA = ifelse(data$aankoop_aanleg_sm_hoev > 0 , data$aankoop_aanleg_sm_hoev, NA)
+  data$aankoop_aanleg_sm_hoevboolean = ifelse(is.na(data$aankoop_aanleg_sm_hoevNA), 0,1)
+  
+  data$aankoop_aanleg_ov_hoevNA = ifelse(data$aankoop_aanleg_ov_hoev > 0 , data$aankoop_aanleg_ov_hoev, NA)
+  data$aankoop_aanleg_ov_hoevboolean = ifelse(is.na(data$aankoop_aanleg_ov_hoevNA), 0,1)
+  
+  data$aankoop_aanleg_kv_hoevNA = ifelse(data$aankoop_aanleg_kv_hoev > 0 , data$aankoop_aanleg_kv_hoev, NA)
+  data$aankoop_aanleg_kv_hoevboolean = ifelse(is.na(data$aankoop_aanleg_kv_hoevNA), 0,1)
+  
+  data$aankoop_aanleg_gk_hoev_rantsoen = ifelse(is.na(data$aankoop_aanleg_gk_hoevNA), NA, data$aankoop_aanleg_gk_hoev / data$gk_verbruik * 100)
+  data$aankoop_aanleg_sm_hoev_rantsoen = ifelse(is.na(data$aankoop_aanleg_sm_hoevNA), NA, data$aankoop_aanleg_sm_hoev / data$sm_verbruik * 100)
+  
+  
+  parameters_aankoop_voer = matrix(ncol = 3, byrow = T, data =  c(
+    "aankoop_aanleg_gk_hoev", 0, "Aankoop graskuil [kg ds]",
+    "aankoop_aanleg_sm_hoev", 0, "Aankoop snijmais [kg ds]",
+    "aankoop_aanleg_ov_hoev", 0, "Aankoop overig ruwvoer en bijproducten [kg ds]",
+    "aankoop_aanleg_kv_hoev", 0, "Aankoop krachtvoer [kg ds]",
+    "akvoer_n", 0, "Voeraankoop stikstof [kg N / ton melk]",
+    "akvoer_p", 0 , "Voeraankoop fosfor [kg P / ton melk]"
+    
+  ))
   
   #BEWEIDING
   data$dagenweidenmelkkoeien = data$dgnweidb + data$dgnweido + data$dgncombib + data$dgncombio
@@ -104,8 +165,7 @@ toevoegenKengetallenKLW <- function(database_klw){
   data$em_nh3_tonmelk_drijfmest =  (data$em_nh3_ombouw	+ data$em_nh3_omgras) / data$melkprod * 1000
   data$em_nh3_tonmelk_kunstmest =  (data$em_nh3_kmbouw	+ data$em_nh3_kmgras) / data$melkprod * 1000
   data$em_nh3_tonmelk_beweid = data$em_nh3_beweid / data$melkprod * 1000
-  data$em_nh3_stal_ha = data$em_nh3_stal / data$opp_totaal
-  
+
   
   
   #BEMESTINGEN

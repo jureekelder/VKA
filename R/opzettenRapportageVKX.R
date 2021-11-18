@@ -114,6 +114,13 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     
   }
   
+  krijg_KLW_kengetal_naam <- function(kengetal, tabel){
+    
+    rownames(tabel) = tabel[,1]
+    kolomnaam = tabel[kengetal, 3]
+    return(as.character(kolomnaam))
+    
+  }
   
   
   #Laden libraries
@@ -125,7 +132,8 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   library(reshape2)
   library(reshape)
   library(ggforce)
-  
+  library(tidyr)
+  library(scales) #voor pretty_breaks()
   
   #Inlezen van dataset
   if(file.exists(path_to_dataset)){
@@ -155,29 +163,72 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   #### HANDMATIG TOEVOEGEN MISSENDE KENGETALLEN ####
   
-  dataset_VKX$jaartal_factor = as.factor(dataset_VKX$jaartal)
-  
-  #Handmatig toevoegen ontbrekende kengetallen
-  dataset_VKX = dataset_VKX %>% mutate(bodem_type_zand = ifelse(grondsoort == "zand", 1, 0))
-  dataset_VKX = dataset_VKX %>% mutate(bodem_type_klei = ifelse(grondsoort == "klei", 1, 0))
-  dataset_VKX = dataset_VKX %>% mutate(bodem_type_veen = ifelse(grondsoort == "veen", 1, 0))
-  
-  
-  #Rantsoenaandeel; overig en melkpoeder optellen
-  dataset_VKX = dataset_VKX %>% mutate(ov_mp_aandeel = ov_aandeel + mp_aandeel)
-  dataset_VKX = dataset_VKX %>% mutate(vg_aandeel_boolean = ifelse(gr_aandeel > 0, 1, 0))
+  if(TRUE){
+    dataset_VKX$jaartal_factor = as.factor(dataset_VKX$jaartal)
     
-  #DEEL 1 : BEDRIJFSONTWIKKELING
+    #Handmatig toevoegen ontbrekende kengetallen
+    dataset_VKX = dataset_VKX %>% mutate(bodem_type_zand = ifelse(grondsoort == "zand", 1, 0))
+    dataset_VKX = dataset_VKX %>% mutate(bodem_type_klei = ifelse(grondsoort == "klei", 1, 0))
+    dataset_VKX = dataset_VKX %>% mutate(bodem_type_veen = ifelse(grondsoort == "veen", 1, 0))
+    
+    
+    #Rantsoenaandeel; overig en melkpoeder optellen
+    dataset_VKX = dataset_VKX %>% mutate(ov_mp_aandeel = ov_aandeel + mp_aandeel)
+    dataset_VKX = dataset_VKX %>% mutate(vg_aandeel_boolean = ifelse(gr_aandeel > 0, 1, 0))
+    
+    
+    #OPPERVLAKTES
+    dataset_VKX$opp_maisNA = ifelse(dataset_VKX$opp_mais > 0, dataset_VKX$opp_mais, NA)
+    dataset_VKX$opp_natuurNA = ifelse(dataset_VKX$opp_natuur > 0, dataset_VKX$opp_natuur, NA)
+    dataset_VKX$opp_overigNA = ifelse(dataset_VKX$opp_overig > 0, dataset_VKX$opp_overig, NA)
+    
+    dataset_VKX$opp_maisboolean = ifelse(is.na(dataset_VKX$opp_maisNA),0,1)
+    dataset_VKX$opp_natuurboolean = ifelse(is.na(dataset_VKX$opp_natuurNA),0,1)
+    dataset_VKX$opp_overigboolean = ifelse(is.na(dataset_VKX$opp_overigNA),0,1)
+    
+    #RANTSOEN
+    dataset_VKX$ov_mp_aandeel = dataset_VKX$ov_aandeel + dataset_VKX$mp_aandeel
+    
+    dataset_VKX$gr_aandeelNA = ifelse(dataset_VKX$gr_aandeel > 0, dataset_VKX$gr_aandeel, NA)
+    dataset_VKX$gr_aandeelboolean = ifelse(is.na(dataset_VKX$gr_aandeelNA),0,1)
+    
+    dataset_VKX$sm_aandeelNA = ifelse(dataset_VKX$sm_aandeel > 0, dataset_VKX$sm_aandeel, NA)
+    dataset_VKX$sm_aandeelboolean = ifelse(is.na(dataset_VKX$sm_aandeelNA),0,1)
+    
+    dataset_VKX$ov_mp_aandeelNA = ifelse(dataset_VKX$ov_mp_aandeel > 0, dataset_VKX$ov_mp_aandeel, NA)
+    dataset_VKX$ov_mp_aandeelboolean = ifelse(is.na(dataset_VKX$ov_mp_aandeelNA),0,1)
+    
+    #AANKOOP AANLEG
+    dataset_VKX$aankoop_aanleg_gk_hoevNA = ifelse(dataset_VKX$aankoop_aanleg_gk_hoev > 0 , dataset_VKX$aankoop_aanleg_gk_hoev, NA)
+    dataset_VKX$aankoop_aanleg_gk_hoevboolean = ifelse(is.na(dataset_VKX$aankoop_aanleg_gk_hoevNA), 0,1)
+    
+    dataset_VKX$aankoop_aanleg_sm_hoevNA = ifelse(dataset_VKX$aankoop_aanleg_sm_hoev > 0 , dataset_VKX$aankoop_aanleg_sm_hoev, NA)
+    dataset_VKX$aankoop_aanleg_sm_hoevboolean = ifelse(is.na(dataset_VKX$aankoop_aanleg_sm_hoevNA), 0,1)
+    
+    dataset_VKX$aankoop_aanleg_ov_hoevNA = ifelse(dataset_VKX$aankoop_aanleg_ov_hoev > 0 , dataset_VKX$aankoop_aanleg_ov_hoev, NA)
+    dataset_VKX$aankoop_aanleg_ov_hoevboolean = ifelse(is.na(dataset_VKX$aankoop_aanleg_ov_hoevNA), 0,1)
+    
+    dataset_VKX$aankoop_aanleg_kv_hoevNA = ifelse(dataset_VKX$aankoop_aanleg_kv_hoev > 0 , dataset_VKX$aankoop_aanleg_kv_hoev, NA)
+    dataset_VKX$aankoop_aanleg_kv_hoevboolean = ifelse(is.na(dataset_VKX$aankoop_aanleg_kv_hoevNA), 0,1)
+    
+    dataset_VKX$aankoop_aanleg_gk_hoev_rantsoen = ifelse(is.na(dataset_VKX$aankoop_aanleg_gk_hoevNA), NA, dataset_VKX$aankoop_aanleg_gk_hoev / dataset_VKX$gk_verbruik * 100)
+    dataset_VKX$aankoop_aanleg_sm_hoev_rantsoen = ifelse(is.na(dataset_VKX$aankoop_aanleg_sm_hoevNA), NA, dataset_VKX$aankoop_aanleg_sm_hoev / dataset_VKX$sm_verbruik * 100)
+    
+    #AMMONIAK
+    dataset_VKX$em_nh3_tonmelk_stalopslag = dataset_VKX$em_nh3_stal / dataset_VKX$melkprod * 1000
+    dataset_VKX$em_nh3_tonmelk_drijfmest =  (dataset_VKX$em_nh3_ombouw	+ dataset_VKX$em_nh3_omgras) / dataset_VKX$melkprod * 1000
+    dataset_VKX$em_nh3_tonmelk_kunstmest =  (dataset_VKX$em_nh3_kmbouw	+ dataset_VKX$em_nh3_kmgras) / dataset_VKX$melkprod * 1000
+    dataset_VKX$em_nh3_tonmelk_beweid = dataset_VKX$em_nh3_beweid / dataset_VKX$melkprod * 1000
+  }
   
-
-  
+  #### DEEL 1 : BEDRIJFSONTWIKKELING ####
   
   parameters_bedrijf = matrix(ncol = 3, byrow = T, data = (c(
     "opp_totaal", 1, "Oppervlakte [ha]",
     "nkoe", 0, "Aantal melkkoeien [-]",
     "njongvee", 0, "Aantal jongvee [-]",
     "jvper10mk", 1, "Jongvee / 10 melkkoeien [-]",
-    "melkprod", 0 , "Melkproductie bedrijf [-]",
+    "melkprod", 0 , "Melkproductie bedrijf [kg]",
     "melkperha", 0, "Intensiteit [kg melk / ha]",
     "fpcmperha", 0, "Intensiteit [kg FPCM / ha]",
     "gveperha", 1, "Veebezetting [GVE / ha]",
@@ -185,22 +236,124 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     "bodem_type_veen", 2, "Aandeel bedrijven op veengrond [%]",
     "bodem_type_klei", 2, "Aandeel bedrijven op kleigrond [%]")))
   
+  dataset_VKX_gemiddeld_bedrijf = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_bedrijf)
+  write_to_excel(dataset_VKX_gemiddeld_bedrijf)
+  
+  parameters_jongvee = matrix(ncol = 3, byrow = T, data = c(
+    "jvper10mk", 1, "Jongvee / 10 melkkoeien [-]",
+    "njvtienmkdrieboolean", 2, "Aandeel bedrijven eigen opfok [%]",
+    "njvtienmkdrie", 1, "Jongvee / 10 melkkoeien eigen opfok [-]"))
+  
+  dataset_VKX_gemiddeld_jongvee = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_jongvee)
+  write_to_excel(dataset_VKX_gemiddeld_jongvee)
+  
+  #Plot melkproductie en intensiteit
+  variables_in_plot = c("melkprod", "melkperha")
+  data_plot_melkprod_intensiteit = dataset_VKX %>% select(jaartal_factor, variables_in_plot) %>% pivot_longer( cols = c("melkprod", "melkperha"), names_to = "Grootheid", values_to = "Waarde")
+  data_plot_melkprod_intensiteit_samengevat = data_plot_melkprod_intensiteit %>% group_by(jaartal_factor, Grootheid) %>% dplyr::summarise(Gemiddelde = mean(Waarde, na.rm = T), SD = sd(Waarde, na.rm = T))
+  data_plot_melkprod_intensiteit_samengevat$Grootheid <- factor(data_plot_melkprod_intensiteit_samengevat$Grootheid, levels = c("melkprod", "melkperha"),
+                    labels = c(krijg_KLW_kengetal_naam("melkprod", parameters_bedrijf), krijg_KLW_kengetal_naam("melkperha", parameters_bedrijf) )
+  )
+  
+  plot = ggplot(data = data_plot_melkprod_intensiteit_samengevat, aes(x = jaartal_factor, y = Gemiddelde, fill = Grootheid, color = Grootheid )) +
+    theme_bw() +
+    #geom_bar(position = position_dodge(), stat = "identity") +
+    geom_point(size = 5) +
+    geom_errorbar(aes(ymin = Gemiddelde - SD, ymax = Gemiddelde + SD), position = position_dodge(0.6), width = 0.4, size = 0.6) +
+    ylab("") +
+    xlab("") +
+    scale_y_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    facet_wrap(~Grootheid, scales = "free_y") +
+    theme(legend.position = "none") +
+    scale_color_manual(values = c(kleur_vka_rood, kleur_vka_groen)) +
+    xlab("Jaartal") +
+    theme( strip.background = element_rect( color="black", fill = "white", size=1.5, linetype="solid" ) ) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) 
+  print(plot)
+  ggsave( "Melkproductie_Intensiteit.png", width = 17, height = 10, units = "cm")
+
+  plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = jvper10mk, fill = jaartal_factor)) +
+    theme_bw() +
+    xlab("Jaartal") +
+    ylab("Jongvee per 10 melkkoeien [-]") +
+    geom_violin(aes(color = jaartal_factor)) +
+    geom_sina(color = "lightgrey", size = 0.5) +
+    theme(legend.position = "none") +
+    scale_y_continuous(breaks = pretty_breaks(n = 6),labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(0, 12), expand = F) +
+    geom_hline(yintercept = 3, size = 1, color ="red") +
+    #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+    stat_summary( fun = mean,
+                  geom = "point",
+                  size = 4,
+                  color = "black",
+                  na.rm = T
+    ) +
+    stat_summary( aes(y = jvper10mk, group =1),
+                  fun = mean,
+                  geom = "line",
+                  size = 1,
+                  color = "black",
+                  na.rm = T
+    ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,1), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1) +
+    scale_fill_manual(values = alpha(c(kleur_vka_groen, kleur_vka_rood,kleur_vka_groen, kleur_vka_rood,kleur_vka_groen, kleur_vka_rood,kleur_vka_groen, kleur_vka_rood), 0.6)) +
+    scale_color_manual(values = alpha(c(kleur_vka_groen, kleur_vka_rood,kleur_vka_groen, kleur_vka_rood,kleur_vka_groen, kleur_vka_rood,kleur_vka_groen, kleur_vka_rood), 0.6))
+  print(plot)
+  ggsave( "jongveebezetting.png", width = 17, height = 10, units = "cm")
+  
+  #BEWEIDING
+  dataset_VKX$dagenweidenmelkkoeien = dataset_VKX$dgnweidb + dataset_VKX$dgnweido + dataset_VKX$dgncombib + dataset_VKX$dgncombio
+  dataset_VKX$dagenweidenmelkkoeienNA = ifelse(dataset_VKX$dagenweidenmelkkoeien < 1, NA, dataset_VKX$dagenweidenmelkkoeien)
+  
+  dataset_VKX$urenweidenmelkkoeien = dataset_VKX$dgnweidb * dataset_VKX$uurweidb + dataset_VKX$dgnweido * dataset_VKX$uurweido + dataset_VKX$dgncombib * dataset_VKX$uurcombib + dataset_VKX$dgncombio * dataset_VKX$uurcombio
+  dataset_VKX$urenweidenmelkkoeienNA = ifelse(dataset_VKX$urenweidenmelkkoeien < 0.1, NA, dataset_VKX$urenweidenmelkkoeien)
+  
+  dataset_VKX$dgnweidpiNA = ifelse(dataset_VKX$dgnweidpi < 0.1, NA, dataset_VKX$dgnweidpi)
+  
+  dataset_VKX$urenweidenmelkkoeienperdag = dataset_VKX$urenweidenmelkkoeien / dataset_VKX$dagenweidenmelkkoeien
+  dataset_VKX$urenweidenmelkkoeienperdag = ifelse(is.nan(dataset_VKX$urenweidenmelkkoeienperdag),0,dataset_VKX$urenweidenmelkkoeienperdag)
+  dataset_VKX$urenweidenmelkkoeienperdagNA = ifelse(dataset_VKX$urenweidenmelkkoeienperdag < 0.1, 0, dataset_VKX$urenweidenmelkkoeienperdag)
+  
+  dataset_VKX$beweidenmelkkoeienboolean = ifelse(is.na(dataset_VKX$dagenweidenmelkkoeienNA), 0 ,1)
+  
   parameters_beweiding = matrix(ncol = 3, byrow = T, data = c( 
     "urenweidenmelkkoeienNA", 0, "Beweiding weidebedrijven [uren]",
     "beweidenmelkkoeienboolean", 2, "Aandeel bedrijven beweiding [%]",
     "zstvdagenNA", 0, "Zomerstalvoedering [dagen]",
     "zstvdagenboolean", 2, "Aandeel bedrijven zomerstalvoedering [%]"))
   
-  parameters_productie = matrix(ncol = 3, byrow = T, data = c(
-    
-    "melkpkoe", 0, "Melkproductie [kg melk / koe / jaar]",
-    "fpcmkoejaar", 0, "Melkproductie [kg FPCM / koe / jaar]",
-    "vet", 2, "Vetgehalte [%]",
-    "eiwit", 2, "Eiwitgehalte [%]",
-    "ureum", 1, "Ureumgehalte [mg/100 gr]",
-    "fosfor", 0, "Fosforgehalte [mg/100 gr]"
-    
-  ))
+  dataset_VKX_gemiddeld_beweiding = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_beweiding)
+  write_to_excel(dataset_VKX_gemiddeld_beweiding)
+  
+
+  
+  
+  
+  plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = melkprod, fill = jaartal_factor)) +
+    theme_bw() +
+    xlab("Jaartal") +
+    ylab("Melkproductie bedrijf [kg]") +
+    geom_violin(aes(color = jaartal_factor)) +
+    geom_sina(color = "lightgrey", size = 0.5) +
+    theme(legend.position = "none") +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(0, 3000000)) +
+    #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
+    stat_summary(
+      fun = mean,
+      geom = "point",
+      size = 4,
+      color = "black"
+    ) +
+    stat_summary( aes(y = melkprod, group =1),
+                  fun = mean,
+                  geom = "line",
+                  size = 1,
+                  color = "black"
+    ) + stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 4, color = "black", vjust = -1)
+  
+  print(plot)
+  ggsave( "melkproductie.png", width = 20, height = 12, units = "cm")
   
   
   parameters_areaal = matrix(ncol = 3, byrow = T, data = c("opp_totaal", 1, "Oppervlakte [ha]",
@@ -213,42 +366,66 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   
   #Maken van de overzichten en exporteren
-  dataset_VKX_gemiddeld_bedrijf = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_bedrijf)
-  write_to_excel(dataset_VKX_gemiddeld_bedrijf)
+
   
-  dataset_VKX_gemiddeld_beweiding = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_beweiding)
-  write_to_excel(dataset_VKX_gemiddeld_beweiding)
+
   
   dataset_VKX_gemiddeld_areaal = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_areaal)
   write_to_excel(dataset_VKX_gemiddeld_areaal)
   
+  parameters_productie = matrix(ncol = 3, byrow = T, data = c(
+    
+    "melkpkoe", 0, "Melkproductie [kg melk / koe / jaar]",
+    "fpcmkoejaar", 0, "Melkproductie [kg FPCM / koe / jaar]",
+    "vet", 2, "Vetgehalte [%]",
+    "eiwit", 2, "Eiwitgehalte [%]",
+    "ureum", 1, "Ureumgehalte [mg/100 gr]",
+    "fosfor", 0, "Fosforgehalte [mg/100 gr]"
+    
+  ))
   
-  
-  
+  dataset_VKX_gemiddeld_productie = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_productie)
+  write_to_excel(dataset_VKX_gemiddeld_productie)
   
   parameters_vee = matrix(ncol = 3, byrow = T , data = c(
     "efficientie_N", 1, "StikstofefficiÃ«ntie veestapel [%]",
     "efficientie_P", 1, "FosfaatefficiÃ«ntie veestapel [%]",
     "voereff_melk", 2, "VoerefficiÃ«ntie [kg melk / kg ds]",
     "voereff_fpcm", 2, "VoerefficiÃ«ntie [kg fpcm / kg ds]",
-    "urenweidenmelkkoeienNA", 0, "Beweiding weidebedrijven [uren]",
-    "beweidenmelkkoeienboolean", 2, "Aandeel bedrijven beweiding [%]",
-    "zstvdagenNA", 0, "Zomerstalvoedering [dagen]",
-    "zstvdagenboolean", 2, "Aandeel bedrijven zomerstalvoedering [%]"
-  )
+    
+    "pcvoordeelspec1", 1, "BEX N-voordeel [%]",
+    "pcvoordeelspec2", 1, "BEX P-voordeel [%]",
+    "excr_spec1", 0, "Stikstofexcretie [kg/bedrijf]",
+    "excr_spec2", 0, "Fosfaatexcretie [kg/bedrijf]",
+    "excretie1_melk", 1, "Stikstofexcretie [kg N / ton melk]",
+    "excretie2_melk", 1, "Fosfaatexcretie [kg P2O5 / ton melk]",
+    "melk_excretie1", 0, "Melkproductie per N-excretie [kg/kg]",
+    "melk_excretie2", 0, "Melkproductie per P2O5-excretie [kg/kg]"
+    
+  ))
+  
+  dataset_VKX_gemiddeld_vee = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_vee)
+  write_to_excel(dataset_VKX_gemiddeld_vee)
+  
+
   
   
-  )
   
-  parameters_benutting = c("benut_n_bed",
-                           'benut_n_vee',
-                           "benut_n_bod",
-                           "benut_p_bed",
-                           "benut_p_vee",
-                           "benut_p_bod"
+  parameters_benutting_bedrijf = matrix(ncol =3, byrow = T, data = c("kring1_benut_tot", 0, "Stikstofbenutting bedrijf [%]",
+                                                                     "kring1_bedbal_ovrtot", 0, "Stikstofoverschot bedrijf [kg N / ha]",
+                                                                     "kring1_bedbal_ovrbod", 0, "Bodemoverschot",
+                                                                     "kring1_bedbal_vrlnh3", 0, "Ammoniakemissie",
+                                                                     "kring1_bedbal_vrln2o", 0, "Lachgasemissie",
+                                                                     "kring1_bedbal_vrlnov", 0, "Overige stikstofverliezen",
+
+                          "kring2_benut_tot", 0 ,"Fosfaatbenutting bedrijf [%]",
+                          "kring2_bedbal_ovrtot", 0, "Fosfaatoverschot bedrijf [kg P2O5 / ha]",
+                          "kring2_bedbal_ovrbod", 0, "Fosfaatoverschot bodem [kg P2O5 / ha]"
+                          
                            
-  )
-  
+  ))
+  dataset_VKX_gemiddeld_benutting_bedrijf = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_benutting_bedrijf)
+  write_to_excel(dataset_VKX_gemiddeld_benutting_bedrijf)
 
   
   
@@ -268,46 +445,69 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                           "dologras",
                           "dolonatuur")
   
-  parameters_ammoniak = c(
-    
-    "em_nh3_stal",
-    "em_nh3_stalint",
-    "em_nh3_ombouw",
-    "em_nh3_omgras",
-    "em_nh3_kmbouw",
-    "em_nh3_kmgras",
-    "em_nh3_beweid",
-    "em_nh3_vrlweid",
-    "em_nh3_vrloogst",
-    "em_nh3_bedrijf",
-    "em_nh3_hagrond",
-    "em_nh3_tonmelk",
-    "n_excretie_mlk",
-    "n_excretie_ovg",
-    "pctan_excr_mlk",
-    "tan_prod_bedr", #OOK INCLUSIEF ANDERE DIEREN
-    "verl_nh3stal_ha",
-    "verl_nh3weid_ha",
-    "verl_nh3bem_ha",
-    "verl_nh3veld_ha",
-    "emnh3_tot_bdr",
-    "emnh3_tot_mlk"
-    
-    
-    
-    
-  )
+  #### AMMONIAK ####
   
-  parameters_aankoop_voer = c(
-    "aankoop_aanleg_gk_hoev",
-    "aankoop_aanleg_sm_hoev",
-    "aankoop_aanleg_ov_hoev",
-    "aankoop_aanleg_kv_hoev",
-    "akvoer_n",
-    "akvoer_P"
+  parameters_ammoniak = matrix(ncol = 3, byrow = T, data = c(
     
+    "em_nh3_bedrijf", 0, "Ammoniakemissie bedrijf [kg]",
+    "em_nh3_hagrond", 1, "Ammoniakemissie [kg / ha]",
+    "em_nh3_tonmelk", 2, "Ammoniakemissie [kg / ton melk]",
+    "em_nh3_gve", 1, "Ammoniakemissie [kg / GVE]",
     
-  )
+    "em_nh3_tonmelk_stalopslag", 2, "Stal en opslag",
+    "em_nh3_tonmelk_drijfmest", 2, "Drijfmest toediening",
+    "em_nh3_tonmelk_kunstmest", 2, "Kunstmest toediening",
+    "em_nh3_tonmelk_beweid", 2, "Beweiden",
+    
+    "efficientie_N", 1, "Stikstofefficientie veestapel [%]",
+    "n_excretie_mlk", 0, "Stikstofexcretie veestapel [kg N]",
+    "pctan_excr_mlk", 0, "Aandel TAN [%]"
+    
+  ))
+  
+  dataset_VKX_gemiddeld_ammoniak = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_ammoniak)
+  write_to_excel(dataset_VKX_gemiddeld_ammoniak)
+  
+  plot = ggplot(data = dataset_VKX, aes(x = efficientie_N, y = em_nh3_tonmelk)) +
+    theme_bw() +
+    xlab("Stikstofefficientie veestapel [%]") +
+    ylab("Ammoniakemissie [kg NH3 / ton melk]") +
+    scale_y_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(1,5)) +
+    geom_point(color = kleur_vka_groen, size = 0.75) +
+    scale_x_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    geom_smooth(method = "lm", se = FALSE, color = kleur_vka_rood, size = 1)   
+  print(plot)
+  ggsave( "Ammoniak_versus_Efficientie.png", width = 18, height = 10, units = "cm")
+  
+  plot = ggplot(data = dataset_VKX, aes(x = melkperha, y = em_nh3_hagrond)) +
+    theme_bw() +
+    xlab("Intensiteit [kg melk /ha]") +
+    ylab("Ammoniakemissie [kg NH3 / ha]") +
+    scale_y_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(40,100),xlim = c(8000,35000)) +
+    geom_point(color = kleur_vka_groen, size = 0.75) +
+    scale_x_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    geom_smooth(method = "lm", se = FALSE, color = kleur_vka_rood, size = 1) 
+  print(plot)
+  ggsave( "Ammoniak_versus_Intensiteit.png", width = 18, height = 10, units = "cm")
+  
+  
+  parameters_aankoop_voer = matrix(ncol = 3, byrow = T, data =  c(
+    "aankoop_aanleg_gk_hoevboolean", 2, "Aandeel bedrijven aankoop graskuil [%]",
+    "aankoop_aanleg_gk_hoevNA", 0, "Aankoop graskuil [kg ds]",
+    "aankoop_aanleg_gk_hoev_rantsoen", 0, "Aankoop graskuil van rantsoen [%]",
+    "aankoop_aanleg_sm_hoevNA", 0, "Aankoop snijmais [kg ds]",
+    "aankoop_aanleg_ov_hoevNA", 0, "Aankoop overig ruwvoer en bijproducten [kg ds]",
+    "aankoop_aanleg_kv_hoevNA", 0, "Aankoop krachtvoer [kg ds]",
+    "akvoer_n", 0, "Voeraankoop stikstof [kg N / ton melk]",
+    "akvoer_p", 0 , "Voeraankoop fosfor [kg P / ton melk]"
+    
+  ))
+  
+  #Maken van de overzichten en exporteren
+  dataset_VKX_gemiddeld_aankoop = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_aankoop_voer)
+  write_to_excel(dataset_VKX_gemiddeld_aankoop)
   
   parameters_kunstmest = c("kmaan_kg",
                            "kmaan_namm",
@@ -366,33 +566,51 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   dataset_VKX_gemiddeld_eiwit_eigen_teelt = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_eiwit_eigen_teelt)
   write_to_excel(dataset_VKX_gemiddeld_eiwit_eigen_teelt)
   
+  #### RANTSOEN ####
   parameters_rantsoen_aandeel = matrix(ncol = 3, byrow = T,  data = c(
                           "gr_aandeel", 0, "Vers gras [%]",
                           "gk_aandeel", 0 , "Graskuil [%]",
-                          "sm_aandeel", 0 , "Snijmaïs [%]",
+                          "sm_aandeel", 0 , "Snijma?s [%]",
                           "kv_aandeel", 0 , "Krachtvoer [%]",
                           "ov_mp_aandeel", 0 , "Overige bijproducten [%]"
 
   ))
+
+  factorNH3toN = (14/17)
+  #verl_nh3stal_ha (in kg N)
+  #verl_nh3weid_ha
+  #verl_nh3bem_ha
   
-  plot = ggplot(data = dataset_VKX %>% filter(gr_aandeel > 0, jaartal > 2019), aes(x = gr_aandeel, y = kv_aandeel, colour = benut_n_bed)) +
-    geom_point() +
-    geom_smooth(method = "lm", se = FALSE) 
+  plot = ggplot(data = dataset_VKX, aes(x = (verl_nh3stal_ha / factorNH3toN), y = em_nh3_stal_ha)) +
+    geom_point()
   print(plot)
   
   dataset_VKX_gemiddeld_rantsoen_aandeel = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_rantsoen_aandeel)
   write_to_excel(dataset_VKX_gemiddeld_rantsoen_aandeel)
   
-  parameters_rantsoen_gehaltes = matrix(ncol = 3, byrow = T, data = c(
+  parameters_rantsoen_re_gehaltes = matrix(ncol = 3, byrow = T, data = c(
     "rants_geh_re", 0, "RE-gehalte rantsoen [g/kg ds]",
     "gr_geh_re", 0, "RE-gehalte vers gras [g/kg ds]",
     "gk_geh_re", 0, "RE-gehalte graskuil [g/kg ds]",
-    "sm_geh_re", 0, "RE-gehalte snijmaïs [g/kg ds]",
+    "sm_geh_re", 0, "RE-gehalte maiskuil [g/kg ds]",
     "kv_geh_re", 0, "RE-gehalte krachtvoer [g/kg ds]",
-    "rants_re_kvem", 0 , "RE/kVEM verhouding rantsoen [-]",
-    "kvper100kgmelk", 1, "Krachtvoerverbruik [kg / 100 kg melk]"
-    
+    "rants_re_kvem", 0 , "RE/kVEM verhouding rantsoen [-]"
+    ))
+  
+  dataset_VKX_gemiddeld_rantsoen_re_gehaltes = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_rantsoen_re_gehaltes)
+  write_to_excel(dataset_VKX_gemiddeld_rantsoen_re_gehaltes)
+  
+  parameters_rantsoen_p_gehaltes = matrix(ncol = 3, byrow = T, data = c(
+    "rants_geh_p", 1, "P-gehalte rantsoen [g/kg ds]",
+    "gr_geh_p", 1, "P-gehalte vers gras [g/kg ds]",
+    "gk_geh_p", 1, "P-gehalte graskuil [g/kg ds]",
+    "sm_geh_p", 1, "P-gehalte maiskuil [g/kg ds]",
+    "kv_geh_p", 1, "P-gehalte krachtvoer [g/kg ds]",
+    "rants_p_kvem", 1 , "P/kVEM verhouding rantsoen [-]"
   ))
+  
+  dataset_VKX_gemiddeld_rantsoen_p_gehaltes = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_rantsoen_p_gehaltes)
+  write_to_excel(dataset_VKX_gemiddeld_rantsoen_p_gehaltes)
   
   parameters_eiwit_eigen_teelt_bemesting = matrix(ncol = 3, byrow = T, data = c(
     "graspr_tmst_kgn", 0, "Stikstofbemesting productiegras [kg N / ha]",
@@ -407,10 +625,128 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   dataset_VKX_gemiddeld_eiwit_eigen_teelt_bemesting = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_eiwit_eigen_teelt_bemesting)
   write_to_excel(dataset_VKX_gemiddeld_eiwit_eigen_teelt_bemesting)
 
+  parameters_bemesting_gras = matrix(ncol =3, byrow = T, data = c(
+    "graspr_dmst_m3", 0, "Organische mest [m3 / ha]",
+    
+    "graspr_totaal_kgn", 0, "Stikstofbemesting totaal productiegras [kg N / ha] ",
+    "graspr_dmst_kgn", 0, "Stikstof uit organische mest [kg N / ha]",
+    "graspr_kmst_kgn", 0, "Stikstof uit kunstmest [kg N / ha]",
+    "graspr_wmst_kgn", 0, "Stikstof uit weidemest [kg N / ha]",
+    
+    "graspr_totaal_kgp2o5", 0, "Fosfaatbemesting productiegras totaal [kg P2O5 / ha]",
+    
+    "graspr_dmst_kgp2o5", 0, "Fosfaat uit drijfmest [kg P2O5 / ha]",
+    "graspr_kmst_kgp2o5", 0, "Fosfaat uit kunstmest [kg P2O5 / ha]",
+    "graspr_wmst_kgp2o5", 0, "Fosfaat uit weidemest [kg P2O5 / ha]"))
   
-  dataset_VKX_gemiddeld_rantsoen_gehaltes = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_rantsoen_gehaltes)
-  write_to_excel(dataset_VKX_gemiddeld_rantsoen_gehaltes)
+  dataset_VKX_gemiddeld_bemesting_gras = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "zand"), parameters_bemesting_gras)
+  write_to_excel(dataset_VKX_gemiddeld_bemesting_gras)
   
+  parameters_bemesting_mais = matrix(ncol =3, byrow = T, data = c(
+    "mais_dmst_m3", 0, "Organische mest [m3 / ha]",
+    
+    "mais_totaal_kgn", 0, "Stikstofbemesting totaal mais [kg N / ha] ",
+    "mais_dmst_kgn", 0, "Stikstof uit organische mest [kg N / ha]",
+    "mais_kmst_kgn", 0, "Stikstof uit kunstmest [kg N / ha]",
+    
+    "mais_totaal_kgp2o5", 0, "Fosfaatbemesting mais totaal [kg P2O5 / ha]",
+    
+    "mais_dmst_kgp2o5", 0, "Fosfaat uit drijfmest [kg P2O5 / ha]",
+    "mais_kmst_kgp2o5", 0, "Fosfaat uit kunstmest [kg P2O5 / ha]"))
+  
+  dataset_VKX_gemiddeld_bemesting_mais = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "zand"), parameters_bemesting_mais)
+  write_to_excel(dataset_VKX_gemiddeld_bemesting_mais)
+  
+  
+  parameters_opbrengst_gras = matrix(ncol = 3, byrow = T, data = c(
+    "opb_graspr_ds", 0 , "Opbrengst productiegras [kg ds / ha]",
+    "opb_graspr_vem_g_kg",  0 , "VEM productiegras [g / kg ds]",
+    "opb_graspr_re_g_kg",  0 , "RE-gehalte productiegras  [g / kg ds]",
+    "opb_graspr_p_g_kg",  1 , "P-gehalte productiegras  [g / kg ds]",
+    "aanleg_gk_hoev", 0, "Aanleg graskuil [kg ds]",
+    "aanleg_gk_vem", 0, "Aanleg graskuil VEM [g/kg]",
+    "aanleg_gk_re", 0, "Aanleg graskuil RE-gehalte [g/kg]",
+    "aanleg_gk_p", 1, "Aanleg graskuil P-gehalte [g/kg]"
+  ))
+  
+  dataset_VKX_gemiddeld_opbrengst_gras = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_opbrengst_gras)
+  write_to_excel(dataset_VKX_gemiddeld_opbrengst_gras)
+  
+  
+  parameters_opbrengst_mais = matrix(ncol = 3, byrow = T, data = c(
+    
+    "opb_mais_ds", 0 , "Opbrengst mais [kg ds / ha]",
+    "opb_mais_vem_g_kg", 0 , "VEM mais [g / kg ds]",
+    "opb_mais_re_g_kg", 0 , "RE-gehalte mais [g / kg ds]",
+    "opb_mais_p_g_kg", 1 , "P-gehalte mais [g / kg ds]",
+    "aanleg_sm_hoev", 0, "Aanleg maiskuil [kg ds]",
+    "aanleg_sm_vem", 0, "Aanleg maiskuil VEM [g/kg]",
+    "aanleg_sm_re", 0, "Aanleg maiskuil RE-gehalte [g/kg]",
+    "aanleg_sm_p", 1, "Aanleg maiskuil P-gehalte [g/kg]"
+  ))
+  
+  
+  plot = ggplot(data = dataset_VKX, aes(x = benut_n_bod, y = kring1_benut_bod)) +
+    geom_point() 
+  print(plot)
+  
+  parameters_stikstof_bodemoverschot = matrix(ncol = 3, byrow = T, data = c(
+    "verl_bodbal1_ha", 0, "Stikstofbodemoverschot [kg N / ha]",
+    "max_N_bodemoverschot", 0, "Norm stikstofbodemoverschot [kg N / ha]",
+    "bodemoverschot_N_minus_norm", 0, "Stikstofbodemoverschot minus norm [kg N / ha]",
+    "bodemoverschot_N_minus_norm_boolean", 2, "Aandeel bedrijven onder norm [%]",
+    "benut_n_bod", 0, "Stikstofbenutting bodem [%]"
+  ))
+
+  lm.model = lm((bodemoverschot_N_minus_norm_boolean) ~  graspr_totaal_kgn + opb_graspr_ds + opb_graspr_n + graspr_totaal_kgp2o5 + mais_totaal_kgp2o5 + 
+                  mais_totaal_kgn + opb_mais_ds + opb_mais_n + aandeel_zand +melkperha , data = dataset_VKX %>% filter(grondsoort == "zand"))
+  summary(lm.model)
+  
+  df_xgboost = (dataset_VKX %>% filter(grondsoort == "zand") %>% select(bodemoverschot_N_minus_norm_boolean, graspr_totaal_kgn, graspr_totaal_kgp2o5, mais_totaal_kgp2o5, opb_graspr_n, opb_graspr_ds, 
+                                         mais_totaal_kgn, opb_mais_ds, opb_mais_n,melkperha, aandeel_zand))
+  
+  parameters_xgboost = matrix(ncol  = 3, byrow = T, data = c(
+    "aandeel_zand", 0, "Aandeel zand bedrijf [%]",
+    "opb_graspr_n", 0, "Stikstofopbrengst productiegrasland [kg N / ha]",
+    "opb_mais_n", 0, "Stikstofopbrengst maisland [kg N / ha]",
+    "aandeel_N_behoefte", 0, "Aandeel N-behoevende gewassen [%]"
+  ))
+  
+  tabel_totaal = rbind(parameters_opbrengst_gras, parameters_opbrengst_mais, parameters_bemesting_gras, parameters_bemesting_mais, parameters_bedrijf,parameters_xgboost, parameters_stikstof_bodemoverschot)
+  
+  names(df_xgboost) = krijg_KLW_kengetal_naam(names(df_xgboost), tabel_totaal)
+  
+  data.matrix = as.matrix(df_xgboost)
+  krijg_KLW_kengetal_naam
+  
+  train = data.matrix[,-1]
+  train = as(train, "dgCMatrix")
+  test = data.matrix[,-1]
+  test = as(test, "dgCMatrix")
+  
+  labels.stikstof = as.factor(data.matrix[,1])
+  library(Ckmeans.1d.dp)
+  bst = xgboost(data = train, label = labels.stikstof, nrounds = 100)
+  plot = xgb.ggplot.importance(importance_matrix = xgb.importance(model = bst)) +
+    theme_bw() +
+    ggtitle("") +
+    xlab("") +
+    guides(fill="none") +
+    scale_fill_manual(values = c(kleur_vka_groen,kleur_vka_groen,kleur_vka_groen,kleur_vka_groen,kleur_vka_groen,kleur_vka_groen))
+    
+  print(plot)
+  ggsave( "XGboost_stikstoverschot.png", width = 20, height = 12, units = "cm")
+  
+  #Doen voor klei en zand!
+  dataset_VKX_gemiddeld_stikstofbodemoverschotten_zand = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "zand"), parameters_stikstof_bodemoverschot)
+  write_to_excel(dataset_VKX_gemiddeld_stikstofbodemoverschotten_zand)
+  dataset_VKX_gemiddeld_stikstofbodemoverschotten_klei = bereken_gemiddelde_over_jaren(dataset_VKX%>% filter(grondsoort == "klei"), parameters_stikstof_bodemoverschot)
+  write_to_excel(dataset_VKX_gemiddeld_stikstofbodemoverschotten_klei)
+  
+  dataset_VKX_gemiddeld_stikstofbodemoverschotten_zand_norm_haal = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "zand", bodemoverschot_N_minus_norm_boolean > 0), parameters_stikstof_bodemoverschot)
+  write_to_excel(dataset_VKX_gemiddeld_stikstofbodemoverschotten_zand_norm_haal)
+  dataset_VKX_gemiddeld_stikstofbodemoverschotten_zand_norm_faal = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "zand", bodemoverschot_N_minus_norm_boolean < 1), parameters_stikstof_bodemoverschot)
+  write_to_excel(dataset_VKX_gemiddeld_stikstofbodemoverschotten_zand_norm_faal)
   
   parameters_bodemoverschotten = c("verl_bodbal1_ha",
                                    "verl_bodbal2_ha",
@@ -431,55 +767,75 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                                    
   )
   
-  parameters_bemesting = matrix(ncol =3, byrow = T, data = c(
-    "graspr_dmst_m3", 0, "Drijfmest productiegras [m3 / ha]",
+
+  dataset_VKX_gemiddeld_opbrengst_mais = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_opbrengst_mais)
+  write_to_excel(dataset_VKX_gemiddeld_opbrengst_mais)
+  
+  plot = ggplot(data = dataset_VKX, aes(x = opb_graspr_re_g_kg, y = rants_geh_re)) +
+    geom_point()
+  print(plot)
+  
+  plot = ggplot(data = dataset_VKX, aes(x = opb_graspr_re_g_kg, y = rants_geh_re)) +
+    theme_bw() +
+    xlab("Productiegras ruw eiwitgehatle [g/kg ds]") +
+    ylab("Ruw eiwitgehalte rantsoen [g/kg ds]") +
+    scale_y_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(140,180), xlim = c(140,220)) +
+    geom_point(color = kleur_vka_groen, size = 0.75) +
+    scale_x_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    geom_smooth(method = "lm", se = FALSE, color = kleur_vka_rood, size = 1)   
+  print(plot)
+  ggsave( "Eiwitproductiegras_versus_eiwitrantsoen.png", width = 10, height = 10, units = "cm")
+  
+  plot = ggplot(data = dataset_VKX, aes(x = graspr_totaal_kgp2o5, y = opb_graspr_p_g_kg)) +
+    theme_bw() +
+    xlab("Fosfaatbemesting productiegrasland [kg P2O5 / ha]") +
+    ylab("Fosforopbrengst productiegrasland [g / kg ds]") +
+    scale_y_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(2.5,4.5), xlim = c(40,120)) +
+    geom_point(color = kleur_vka_groen, size = 0.75) +
+    scale_x_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    geom_smooth(method = "lm", se = FALSE, color = kleur_vka_rood, size = 1) 
+  print(plot)
+  ggsave( "Fosfaatbemsting_grasland_versus_fosfor_opbrengst.png", width = 10, height = 10, units = "cm")
+  
+  getNumbersFromString <- function(x) {
+    elements = unlist(strsplit(x, ""))
+    numberString = NULL
     
-#                          "graspr_tmst_kgn", 0, "Stikstofbemesting productiegras [kg / ha]",
- #                          "graspr_tmst_kgp2o5", 0, "Fosfaatbemesting productiegras [kg / ha]",
-                           "graspr_dmst_kgn", 0, "Stikstof drijfmest productiegras [kg / ha]",
-                           "graspr_dmst_kgp2o5", 0, "Fosfaat drijfmest productiegras [kg / ha]",
-                           "graspr_kmst_kgn", 0, "Stikstof kunstmest productiegras [kg / ha]",
-                           "graspr_kmst_kgp2o5", 0, "Fosfaat kunstmest productiegras [kg / ha]",
-                           "graspr_wmst_kgn", 0, "Stikstof weidemest productiegras [kg / ha]",
-                           "graspr_wmst_kgp2o5", 0, "Fosfaat weidemest productiegras [kg / ha]",
-"mais_dmst_m3",  0, "Drijfmest mais [m3 / ha]",
-
-#                           'mais_tmst_kgn', 0, "Stikstofbemesting mais [kg / ha]",
-#                           "mais_tmst_kgp2o5",  0, "Fosfaatbemestingmais [kg / ha]",
-                           "mais_dmst_kgn",  0, "Stikstof drijfmest mais [kg / ha]",
-                           "mais_dmst_kgp2o5",  0, "Fosfaat drijfmest mais [kg / ha]",
-                           "mais_kmst_kgn",  0, "Stikstof kunstmest mais [kg / ha]",
-                           "mais_kmst_kgp2o5",  0, "Fosfaat kunstmest mais [kg / ha]"
-#                           "graspr_bemest_dierlijk_N", 
-#                           "graspr_totaal_kgn",
-#                           "graspr_totaal_kgp2o5",
-#                           "mais_bemest_dierlijk_N",
-#                           "mais_totaal_kgn",
-#                           "mais_totaal_kgp2o5"
+    for (e in elements) {
+      suppressWarnings({
+        number = as.numeric(e)
+      })
+      if (is.na(number)) {
+        
+      } else {
+        numberString = paste(numberString, number, sep = "")
+      }
+      
+    }
+    
+    if (is.null(numberString)) {
+      return(NA)
+    } else {
+      return(numberString)
+    }
+    
+  }
+  
+  dataset_VKX = dataset_VKX %>% rowwise() %>% dplyr::mutate(pceigen_vem_numeric = as.numeric(getNumbersFromString(pceigen_vem)))
+  dataset_VKX = dataset_VKX %>% rowwise() %>% dplyr::mutate(pceigen_p_numeric = as.numeric(getNumbersFromString(pceigen_p)))
+  
+  
+  parameters_eigen_voer = matrix(ncol = 3, byrow = T, data =c(
+    "pceigen_n", 1, "Eiwit eigen land [%]",
+    "pceigen_n_buurt", 1, "Eiwit eigen land met buurtaankoop [%]",
+    "pceigen_p_numeric", 1, "Fosfor eigen land [%]",
+    "pceigen_vem_numeric", 1, "VEM eigen land [%]"
   ))
   
-  
-  dataset_VKX_gemiddeld_bemesting = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "klei"), parameters_bemesting)
-  write_to_excel(dataset_VKX_gemiddeld_bemesting)
-  
-  
-  parameters_opbrengst = matrix(ncol = 3, byrow = T, data = c(
-                          "opb_graspr_ds", 0 , "Opbrengst productiegras [kg ds / ha]",
-                           "opb_graspr_vem_g_kg",  0 , "VEM productiegras [g / kg ds]",
-                           "opb_graspr_re_g_kg",  0 , "RE-gehalte productiegras  [g / kg ds]",
-                           "opb_graspr_p_g_kg",  1 , "P-gehalte productiegras  [g / kg ds]",
-                           "opb_mais_ds", 0 , "Opbrengst mais [kg ds / ha]",
-                           "opb_mais_vem_g_kg", 0 , "VEM mais [g / kg ds]",
-                           "opb_mais_re_g_kg", 0 , "RE-gehalte mais [g / kg ds]",
-                           "opb_mais_p_g_kg", 1 , "P-gehalte mais [g / kg ds]"
-#                           "opb_graspr_ds_per_N_bemest",
-#                           "opb_mais_ds_per_N_bemest",
-
-
-  ))
-  
-  dataset_VKX_gemiddeld_opbrengst = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_opbrengst)
-  write_to_excel(dataset_VKX_gemiddeld_opbrengst)
+  dataset_VKX_gemiddeld_eigen_voer = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_eigen_voer)
+  write_to_excel(dataset_VKX_gemiddeld_eigen_voer)
   
   parameters_kuil_aanleg = c("aanleg_gk_vem",
                              "aanleg_gk_re",
@@ -496,7 +852,9 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                               "PP_blijvend_grasland",
                               "PP_broeikasgas")
   
+  #### BROEIKASGASSEN ####
   
+
   
   parameters_broeikasgassen = matrix(ncol = 3, byrow = T, data = c("dzh_co2_melkprod", 0, "Bedrijf [g CO2-eq/kg FPCM]",
                                                                    "dzh_co2_pensferm", 0, "Pens [g CO2-eq/kg FPCM]", 
@@ -504,6 +862,71 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                                                                    "dzh_co2_voerprod", 0, "Voerproductie [g CO2-eq/kg FPCM]",
                                                                    "dzh_co2_energie", 0, "Energie [g CO2-eq/kg FPCM]",
                                                                    "dzh_co2_aanvoer", 0, "Aanvoer [g CO2-eq/kg FPCM]"))
+  
+  #Plot melkproductie en intensiteit
+  variables_in_plot = parameters_broeikasgassen[-1,1]
+  data_plot_melkprod_intensiteit = dataset_VKX %>% select(jaartal_factor, variables_in_plot) %>% pivot_longer( cols = variables_in_plot, names_to = "Grootheid", values_to = "Waarde")
+  data_plot_melkprod_intensiteit_samengevat = data_plot_melkprod_intensiteit %>% group_by(jaartal_factor, Grootheid) %>% dplyr::summarise(Gemiddelde = mean(Waarde, na.rm = T), SD = sd(Waarde, na.rm = T))
+  data_plot_melkprod_intensiteit_samengevat$Grootheid <- factor(data_plot_melkprod_intensiteit_samengevat$Grootheid, levels = variables_in_plot,
+                                                                labels = c( 
+                                                                           krijg_KLW_kengetal_naam(parameters_broeikasgassen[2,1], parameters_broeikasgassen),
+                                                                           krijg_KLW_kengetal_naam(parameters_broeikasgassen[3,1], parameters_broeikasgassen),
+                                                                           krijg_KLW_kengetal_naam(parameters_broeikasgassen[4,1], parameters_broeikasgassen),
+                                                                           krijg_KLW_kengetal_naam(parameters_broeikasgassen[5,1], parameters_broeikasgassen),
+                                                                           krijg_KLW_kengetal_naam(parameters_broeikasgassen[6,1], parameters_broeikasgassen))
+  )
+  
+  plot = ggplot(data = data_plot_melkprod_intensiteit_samengevat, aes(x = jaartal_factor, y = Gemiddelde, fill = Grootheid)) +
+    theme_bw() +
+    ylab("BKG emissie [kg CO2-eq / kg FPCM") +
+    xlab("Jaartal") +
+    geom_bar(stat = "identity", position = position_dodge(0.8), width = 0.7) +
+    coord_cartesian(ylim = c(0,500), expand = F) +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 10)) +
+    theme(legend.position = "top") +
+    scale_fill_discrete(name = "") +
+    guides(fill=guide_legend(nrow=2,byrow=TRUE))
+  print(plot)
+  ggsave( "bkg_verdeling.png", width = 17, height = 10, units = "cm")
+  
+  plot = ggplot(data = dataset_VKX, aes(x = voereff_fpcm, y = dzh_co2_melkprod)) +
+    theme_bw() +
+    xlab("Voerefficientie veestapel [kg FPCM / kg ds]") +
+    ylab("BKG emissie [kg CO2-eq / FPCM]") +
+    scale_y_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(900,1400)) +
+    geom_point(color = kleur_vka_groen, size = 0.75) +
+    scale_x_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    geom_smooth(method = "lm", se = FALSE, color = kleur_vka_rood, size = 1)   
+  print(plot)
+  ggsave( "BKG_versus_EfficientieVoer.png", width = 10, height = 10, units = "cm")
+  
+  plot = ggplot(data = dataset_VKX, aes(x = (gk_aandeel + gr_aandeel), y = dzh_co2_pensferm)) +
+    theme_bw() +
+    xlab("Aandeel (vers)gras in rantsoen [%]") +
+    ylab("BKG emissie [kg CO2-eq / FPCM]") +
+    scale_y_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(300,600), xlim = c(25,65)) +
+    geom_point(color = kleur_vka_groen, size = 0.75) +
+    scale_x_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    geom_smooth(method = "lm", se = FALSE, color = kleur_vka_rood, size = 1)   
+  print(plot)
+  ggsave( "BKG_versus_Gras.png", width = 10, height = 10, units = "cm")
+  
+  dataset_VKX$jaartal_2020_factor = ifelse(dataset_VKX$jaartal> 2019, "2020", "2013-2019")
+  plot = ggplot(data = dataset_VKX, aes(x = kv_aandeel, y = co2_aanv_kvmp, color = jaartal_2020_factor, group = jaartal_2020_factor)) +
+    theme_bw() +
+    xlab("Aandeel krachtvoer in rantsoen [%]") +
+    ylab("BKG emissie [kg CO2-eq / FPCM]") +
+    scale_y_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(100,400), xlim = c(15,35)) +
+    geom_point( size = 0.75) +
+    scale_x_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    geom_smooth(method = "lm", se = FALSE,  size = 1)   +
+    theme(legend.position = "top") +
+    scale_color_manual(name = "Periode", values = c(kleur_vka_groen, kleur_vka_rood)) 
+  print(plot)
+  ggsave( "BKG_uit_kv.png", width = 17, height = 10, units = "cm")
   
   
   parameters_broeikasgassen_extra = matrix(ncol = 3, byrow = T, data = c(
@@ -545,11 +968,6 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   "co2_aanv_gwbm", 0 , "Gewasbescherming",
   "co2_aanv_afdek", 0 , "Plastic"))
   
-  
-  
-  
-  
- 
 
   
   dataset_VKX_gemiddeld_bkg = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_broeikasgassen)
@@ -559,6 +977,19 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   write_to_excel(dataset_VKX_gemiddeld_bkg_extra)
   
   #### Melk & Klimaat ####
+  
+  plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = dzh_co2_melkprod, fill = jaartal_factor)) +
+    theme_bw() +
+    xlab("Jaartal") +
+    ylab("BKG emissie [g CO2-eq / eenheid melk]") +
+    theme(legend.position = "none") +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+    coord_cartesian(ylim = c(1000, 1200)) +
+    stat_summary(fun = "mean", geom = "bar", 
+                 alpha = .7, position = position_dodge(0.95)) +
+    stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = 3 )
+  print(plot)
+  ggsave( "bkg_8HRK.png", width = 20, height = 12, units = "cm")
   
   plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = dzh_co2_melkprod, fill = jaartal_factor, color = jaartal_factor)) +
     theme_bw() +
@@ -589,7 +1020,7 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   ggsave( "bkg.png", width = 20, height = 12, units = "cm")
   
   
-  plot = ggplot(data = dataset_VKX, aes(x = kv_aandeel, y = dzh_co2_aanvoer, color = jaartal_factor)) +
+  plot = ggplot(data = dataset_VKX, aes(x = voereff_fpcm, y = dzh_co2_pensferm, color = jaartal_factor)) +
     theme_bw() +
     xlab("Aandeel krachtvoer rantsoen [%]") +
     ylab("BKG emissie aanvoer [g CO2-eq / FPCM]") +
@@ -597,14 +1028,13 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     geom_smooth(method = "lm", se = FALSE) +
     #theme(legend.position = "none") +
     guides(color=guide_legend(title = "Jaartal"))+
-    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
-    coord_cartesian(ylim = c(100, 700), xlim=c(15,40)) 
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) 
   print(plot)
   ggsave( "kv_co2.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_VKX %>% filter(efficientie_N > 20), aes(x = efficientie_N, y = rants_geh_re, color = jaartal_factor)) +
+  plot = ggplot(data = dataset_VKX, aes(x = voereff_fpcm, y = dzh_co2_melkprod, color = jaartal_factor)) +
     theme_bw() +
-    xlab("Stikstofefficiëntie veestapel [%]") +
+    xlab("Voerfefficientie veestapel [%]") +
     ylab("BKG emissie bedrijf [g CO2-eq / FPCM]") +
     geom_point(size = 0.5) +
     geom_smooth(method = "lm", se = FALSE) +
@@ -1254,14 +1684,15 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
       geom_violin(aes(fill = grondsoort)) +
       geom_sina(color = "lightgrey", size = 0.5) +
       #theme(legend.position = "none") +
-      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
-      #coord_cartesian(ylim = c(0, 250)) +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n=6)) +
+      coord_cartesian(ylim = c(-50, 300)) +
       #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
       stat_summary( fun = mean, aes(group = grondsoort), position = position_dodge(.9) ,
                     geom = "point",
                     size = 4,
                     color = "black",
-                    na.rm = T
+                    na.rm = T, show.legend = F
+                    
       )   +
       stat_summary( aes(y = verl_bodbal1_ha, group = grondsoort, linetype  = grondsoort),
                     fun = mean,
@@ -1269,12 +1700,17 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                     size = 1,
                     color = "black",
                     
-                    na.rm = T , position = position_dodge(.9) 
+                    na.rm = T , position = position_dodge(.9) ,
+                    show.legend = F
       ) +
-      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1, position = position_dodge(.9) )
-    
+      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1, position = position_dodge(.9) )+
+      scale_fill_manual(name = "Grondsoort", values = alpha(c(kleur_vka_groen, kleur_vka_rood), 0.6)) +
+      scale_color_manual(name = "Grondsoort",values = alpha(c(kleur_vka_groen, kleur_vka_rood), 0.6)) +
+      theme(legend.position = "top") 
+      
+      
     print(plot)
-    ggsave( "n_overschot.png", width = 20, height = 12, units = "cm")
+    ggsave( "n_overschot.png", width = 24, height = 16, units = "cm")
     
     plot = ggplot(data = dataset_VKX %>% filter(grondsoort %in% c("veen", "klei", "zand")) , aes(x = jaartal_factor, y = verl_bodbal2_ha, fill = grondsoort, color = grondsoort)) +
       
@@ -1284,14 +1720,15 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
       geom_violin(aes(fill = grondsoort)) +
       geom_sina(color = "lightgrey", size = 0.5) +
       #theme(legend.position = "none") +
-      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
-      coord_cartesian(ylim = c(-55, 55)) +
+      scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n=6)) +
+      coord_cartesian(ylim = c(-65, 65)) +
       #geom_boxplot(width = 0.2, size = 1, outlier.shape = NA) +
       stat_summary( fun = mean, aes(group = grondsoort), position = position_dodge(.9) ,
                     geom = "point",
                     size = 4,
                     color = "black",
-                    na.rm = T
+                    na.rm = T,
+                    show.legend = F
       )   +
       stat_summary( aes(y = verl_bodbal2_ha, group = grondsoort, linetype  = grondsoort),
                     fun = mean,
@@ -1299,12 +1736,15 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                     size = 1,
                     color = "black",
                     
-                    na.rm = T , position = position_dodge(.9) 
+                    na.rm = T , position = position_dodge(.9) ,
+                    show.legend = F
       ) +
-      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1, position = position_dodge(.9) )
-    
+      stat_summary (fun = mean, geom = "text", aes(label = format(round(..y..,0), big.mark = ".", scientific = FALSE)), size = 5, color = "black", vjust = -1, position = position_dodge(.9) )+
+    scale_fill_manual(name = "Grondsoort", values = alpha(c(kleur_vka_groen, kleur_vka_rood), 0.6)) +
+      scale_color_manual(name = "Grondsoort",values = alpha(c(kleur_vka_groen, kleur_vka_rood), 0.6))  +
+      theme(legend.position = "top") 
     print(plot)
-    ggsave( "p_overschot.png", width = 20, height = 12, units = "cm")
+    ggsave( "p_overschot.png", width = 24, height = 16, units = "cm")
     
     
     plot = ggplot(data = dataset_VKX, aes(x = jaartal_factor, y = dzh_nh3_bedrha, fill = jaartal_factor)) +

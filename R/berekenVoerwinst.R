@@ -10,7 +10,7 @@
 
 #BENODIGDE FUNCTIES:
 #getDataInFolder
-#XMLtoDataFrame
+#XMLtoDataFrame (optioneel)
 
 
 #Voor testen:
@@ -19,7 +19,7 @@
 #output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
 
 
-berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder, bijproducten_algemeen = TRUE){
+berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder = NULL, bijproducten_algemeen = TRUE, produce_plots = FALSE){
   
   output_file_string = "zonder_XML"
   
@@ -57,13 +57,18 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder,
     stop("Path naar dataset bestaat niet!")
   }
   
-  #Opzetten output path
-  if(file.exists(output_folder)){
-    setwd(output_folder)
+  if(!is.null(output_folder)){
+    #Opzetten output path
+    if(file.exists(output_folder)){
+      setwd(output_folder)
+    } else {
+      warning("Path naar voor output bestaat niet!")
+      produce_plots = FALSE
+    }
   } else {
-    warning("Path naar voor output bestaat niet!")
+    warning("Geen output path opgegeven, dan worden er ook geen plots gemaakt.")
+    produce_plots = FALSE
   }
-  
   
   #Parameters
   prijs_vet = 293
@@ -432,6 +437,7 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder,
   
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(saldo_ruwvoer_verkoop = saldo_verkoop_overschot_gras + saldo_verkoop_overschot_mais)
   
+  if(produce_plots){
   library(ggplot2)
   library(ggforce)
   
@@ -555,18 +561,18 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder,
   ggsave( "voerwinst_ha_verdelig.png", width = 20, height = 12, units = "cm")
   
   write.xlsx(dataset_voerwinst, paste("data_voerwinst_",output_file_string,".xlsx",sep=""), asTable = T, overwrite = T)
-  
+  }
   
   return(as.data.frame(dataset_voerwinst))
   
 }
 
 #Voor testen:
-if(TRUE){
-path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXML"
-path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Dataset_VKA_2018_2020"
-output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
+#if(TRUE){
+#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXML"
+#path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Dataset_VKA_2018_2020"
+#output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
 
-output = berekenVoerwinst(path_dataset = path_dataset, path_xml_files = path_xml_files, output_folder = output_folder, bijproducten_algemeen = F)
+#output = berekenVoerwinst(path_dataset = path_dataset, path_xml_files = path_xml_files, output_folder = output_folder, bijproducten_algemeen = F, produce_plots = T)
 
-}
+#}

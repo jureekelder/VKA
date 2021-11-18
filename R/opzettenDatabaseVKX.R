@@ -591,7 +591,8 @@ foute_KLW = data_KLW_VKX %>% dplyr::filter(ID_KLW %in% foute_KLW_inputs) %>% dpl
 write.xlsx( foute_KLW,  paste("foutieve_KLW_dataset_VKA_",min_jaartal,"_",max_jaartal,".xlsx",sep = ""), asTable = T, overwrite = T)
 
 
-#Negeren van foute KLW in de dataset.
+#Toevoegen van FLAG voor foute KLW bestanden.
+data_KLW_VKX = data_KLW_VKX %>% dplyr::mutate(foute_KLW_boolean = ifelse(ID_KLW %in% foute_KLW_inputs))
 data_KLW_VKX_Schoon = data_KLW_VKX %>% dplyr::filter(!ID_KLW %in% foute_KLW_inputs)
 
 #Nu dat de foute KLW zijn verwijderd, zijn er bedrijven die niet voor álle jaartallen een KLW hebben.
@@ -616,9 +617,11 @@ outputToLog("Percentage bedrijven van VKX in opgeschoonde dataset: ", percentage
 data_KLW_VKX_Compleet = data_KLW_VKX_Compleet %>% dplyr::arrange(Lidmaatschapsnummer, jaartal)
 
 #Wegschrijven dataset naar excel.
+
 #Zorgen dat de kolomnamen uniek zijn
 names_df = make.unique(colnames(data_KLW_VKX_Compleet),sep = "_")
 colnames(data_KLW_VKX_Compleet) = names_df
+
 write.xlsx(
   data_KLW_VKX_Compleet,
   paste("dataset_",type,"_", min_jaartal, "_", max_jaartal, ".xlsx", sep = ""),

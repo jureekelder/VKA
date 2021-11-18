@@ -201,9 +201,7 @@ opzettenDatabaseBodemVKX <- function(path_to_database_KLW, path_to_database_Bode
   }
   data_Bodem = data_Bodem %>% rowwise() %>% dplyr::mutate(gewas_kort = bepaalGewasEurofins(Gewas1))
   
-  #Observaties bodemdata
-  jaartal_min = min(data_Bodem_samengevat$jaartal, na.rm = T)
-  jaartal_max = max(data_Bodem_samengevat$jaartal, na.rm = T)
+
   
   data_Bodem_meta = data_Bodem %>% group_by(jaartal) %>% dplyr::summarise(count = n())
   
@@ -212,6 +210,11 @@ opzettenDatabaseBodemVKX <- function(path_to_database_KLW, path_to_database_Bode
     dplyr::summarise(mean_cn = mean(Cnratio, na.rm = T), sd_cn = sd(Cnratio, na.rm = T),
                      mean_nlv = mean(NLV, na.rm = T), sd_nlv = sd(NLV, na.rm = T),
                      mean_os = mean(OS, na.rm = T), sd_os = sd(OS, na.rm = T))
+  
+  
+  #Observaties bodemdata
+  jaartal_min = min(data_Bodem_samengevat$jaartal, na.rm = T)
+  jaartal_max = max(data_Bodem_samengevat$jaartal, na.rm = T)
   
   plot = ggplot(data = data_Bodem_samengevat, aes(x = jaartal, y = mean_cn )) +
     theme_bw() +
@@ -308,11 +311,40 @@ opzettenDatabaseBodemVKX <- function(path_to_database_KLW, path_to_database_Bode
   outputToLog("Aantal matches klantnummers in KLW-bodem data", length(unique(data_Bodem_KLW$PK_VKX)))
 
   plot = ggplot(data = data_Bodem_KLW, aes(x = over_bod_gras1, y = Cnratio.Gras, color = as.factor(jaartal))) +
+    theme_bw() +
+    xlab("KLW bodemoverschot") +
+    ylab("C/N ratio") +
     geom_point() +
-    geom_smooth(method = lm, se = F) 
-    
+    xlim(0,300) +
+    ylim(7,18) +
+    guides(color=guide_legend(title="Jaartal")) +
+    ggtitle("C/N ratio grasland versus KLW bodemoverschot grasland")
   print(plot)
+  ggsave("CNratio_grasland_KLW_overschot_grasland.png", width = 20, height = 12, units = "cm")
   
+  plot = ggplot(data = data_Bodem_KLW, aes(x = over_bod_mais1, y = Cnratio.Mais, color = as.factor(jaartal))) +
+    theme_bw() +
+    xlab("KLW bodemoverschot") +
+    ylab("C/N ratio") +
+    geom_point() +
+    xlim(0,300) +
+    ylim(7,18) +
+    guides(color=guide_legend(title="Jaartal")) +
+    ggtitle("C/N ratio maisland versus KLW bodemoverschot maisland")
+  print(plot)
+  ggsave("CNratio_maisland_KLW_overschot_maisland.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = data_Bodem_KLW, aes(x = verl_bodbal1_ha, y = Cnratio, color = as.factor(jaartal))) +
+    theme_bw() +
+    xlab("KLW bodemoverschot") +
+    ylab("C/N ratio") +
+    geom_point() +
+    xlim(0,300) +
+    ylim(7,18) +
+    guides(color=guide_legend(title="Jaartal")) +
+    ggtitle("C/N ratio bedrijf versus KLW bodemoverschot bedrijf")
+  print(plot)
+  ggsave("CNratio_bedrijf_KLW_overschot_bedrijf.png", width = 20, height = 12, units = "cm")
   
   plot = ggplot(data = data_Bodem_KLW, aes(x = over_bod_mais1, y = Cnratio.Mais)) +
     geom_point()
