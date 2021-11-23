@@ -137,7 +137,7 @@ XMLtoDataFrame <- function(path_xml_files){
 }
 
 
-if(TRUE){
+if(FALSE){
   path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXMLtest"
   data_xml_test = XMLtoDataFrame(path_xml_files) 
 }

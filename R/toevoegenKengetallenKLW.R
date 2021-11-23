@@ -279,8 +279,9 @@ toevoegenKengetallenKLW <- function(database_klw){
   ) / (data$ha_mais_veen + data$ha_mais_klei + data$ha_mais_zand1 + data$ha_mais_zand2 + data$ha_mais_zand3)
   
   #Fosfaat bodembalans
-  data$bodemoverschot_P_norm_boolean = ifelse(data$kring2_bodover<0,1,0)
+  data$bodemoverschot_P_norm_boolean = ifelse(data$kring2_bodover<0,1,0) #kring2_bodover of kring2_bedbal_ovrbod of verl_bodbal2_ha
   data$kring2_bodaan = data$kring2_bodaan_dm + data$kring2_bodaan_km + data$kring2_bodaan_wm
+  data$kring2_bodafv = data$kring2_bodafv_gk + data$kring2_bodafv_vg + data$kring2_bodafv_sm + data$kring2_bodafv_ov
   
   #BEP
   data$BEP_voordeel_boolean = ifelse(data$fosfaatnorm_voordeel > 0, 1, 0)

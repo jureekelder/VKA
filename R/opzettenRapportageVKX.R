@@ -26,7 +26,9 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   #Het laden van benodigde functies die ook op GIT staan.
   library(devtools)
-  scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R")
+  scripts_to_source = c("https://raw.githubusercontent.com/jureekelder/scriptsalgemeen/main/R/getDataInFolder.R",
+                        "https://raw.githubusercontent.com/jureekelder/VKA/main/R/berekenVoerwinst.R",
+                        "https://raw.githubusercontent.com/jureekelder/VKA/main/R/XMLtoDataFrame.R")
   
   
   
@@ -89,6 +91,8 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   #Functie om het gemiddelde te bereken voor sommige kolommen
   bereken_gemiddelde_over_jaren <- function(df, names_digits_matrix){
+    
+    #df[sapply(df, is.infinite)] <- NA
     
     output = df %>% 
       dplyr::select(c("jaartal",names_digits_matrix[,1])) %>%
@@ -171,6 +175,21 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     dataset_VKX = dataset_VKX %>% mutate(bodem_type_klei = ifelse(grondsoort == "klei", 1, 0))
     dataset_VKX = dataset_VKX %>% mutate(bodem_type_veen = ifelse(grondsoort == "veen", 1, 0))
     
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(gr_verbruik_voerhek = ifelse(gr_verbruik > 0, gr_verbruik / 1.0, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(gk_verbruik_voerhek = ifelse(gk_verbruik > 0, gk_verbruik / 0.95, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(sm_verbruik_voerhek = ifelse(sm_verbruik > 0, sm_verbruik / 0.95, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(ov_verbruik_voerhek = ifelse(ov_verbruik > 0, ov_verbruik / 0.97, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(kv_verbruik_voerhek = ifelse(kv_verbruik > 0, kv_verbruik / 0.98, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(mp_verbruik_voerhek = ifelse(mp_verbruik > 0, mp_verbruik / 0.98, 0))
+    
+    #Verbruik producten zoals het in de kuil gaat --> vóór conserveringsverliezen
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(gr_verbruik_kuil = ifelse(gr_verbruik_voerhek > 0, gr_verbruik_voerhek / 1.0, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(gk_verbruik_kuil = ifelse(gk_verbruik_voerhek > 0, gk_verbruik_voerhek / 0.90, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(sm_verbruik_kuil = ifelse(sm_verbruik_voerhek > 0, sm_verbruik_voerhek / 0.96, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(ov_verbruik_kuil = ifelse(ov_verbruik_voerhek > 0, ov_verbruik_voerhek / 0.96, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(kv_verbruik_kuil = ifelse(kv_verbruik_voerhek > 0, kv_verbruik_voerhek / 1.0, 0))
+    dataset_VKX = dataset_VKX %>% dplyr::mutate(mp_verbruik_kuil = ifelse(mp_verbruik_voerhek > 0, mp_verbruik_voerhek / 1.0, 0))
+    
     
     #Rantsoenaandeel; overig en melkpoeder optellen
     dataset_VKX = dataset_VKX %>% mutate(ov_mp_aandeel = ov_aandeel + mp_aandeel)
@@ -211,14 +230,21 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     dataset_VKX$aankoop_aanleg_kv_hoevNA = ifelse(dataset_VKX$aankoop_aanleg_kv_hoev > 0 , dataset_VKX$aankoop_aanleg_kv_hoev, NA)
     dataset_VKX$aankoop_aanleg_kv_hoevboolean = ifelse(is.na(dataset_VKX$aankoop_aanleg_kv_hoevNA), 0,1)
     
-    dataset_VKX$aankoop_aanleg_gk_hoev_rantsoen = ifelse(is.na(dataset_VKX$aankoop_aanleg_gk_hoevNA), NA, dataset_VKX$aankoop_aanleg_gk_hoev / dataset_VKX$gk_verbruik * 100)
-    dataset_VKX$aankoop_aanleg_sm_hoev_rantsoen = ifelse(is.na(dataset_VKX$aankoop_aanleg_sm_hoevNA), NA, dataset_VKX$aankoop_aanleg_sm_hoev / dataset_VKX$sm_verbruik * 100)
+    dataset_VKX$aankoop_aanleg_gk_hoev_rantsoen = ifelse(is.na(dataset_VKX$aankoop_aanleg_gk_hoevNA), NA, dataset_VKX$aankoop_aanleg_gk_hoev / dataset_VKX$gk_verbruik_kuil * 100)
+    dataset_VKX$aankoop_aanleg_sm_hoev_rantsoen = ifelse(is.na(dataset_VKX$aankoop_aanleg_sm_hoevNA), NA, dataset_VKX$aankoop_aanleg_sm_hoev / dataset_VKX$sm_verbruik_kuil * 100)
+    dataset_VKX$aankoop_aanleg_ov_hoev_rantsoen = ifelse(is.na(dataset_VKX$aankoop_aanleg_ov_hoevNA), NA, dataset_VKX$aankoop_aanleg_ov_hoev / dataset_VKX$ov_verbruik_kuil * 100)
+    dataset_VKX$aankoop_aanleg_kv_hoev_rantsoen = ifelse(is.na(dataset_VKX$aankoop_aanleg_kv_hoevNA), NA, dataset_VKX$aankoop_aanleg_kv_hoev / dataset_VKX$kv_verbruik_kuil * 100)
+    
     
     #AMMONIAK
     dataset_VKX$em_nh3_tonmelk_stalopslag = dataset_VKX$em_nh3_stal / dataset_VKX$melkprod * 1000
     dataset_VKX$em_nh3_tonmelk_drijfmest =  (dataset_VKX$em_nh3_ombouw	+ dataset_VKX$em_nh3_omgras) / dataset_VKX$melkprod * 1000
     dataset_VKX$em_nh3_tonmelk_kunstmest =  (dataset_VKX$em_nh3_kmbouw	+ dataset_VKX$em_nh3_kmgras) / dataset_VKX$melkprod * 1000
     dataset_VKX$em_nh3_tonmelk_beweid = dataset_VKX$em_nh3_beweid / dataset_VKX$melkprod * 1000
+    
+    #FOSFAAT
+    dataset_VKX$kring2_bodafv = dataset_VKX$kring2_bodafv_gk + dataset_VKX$kring2_bodafv_vg + dataset_VKX$kring2_bodafv_sm + dataset_VKX$kring2_bodafv_ov
+    
   }
   
   #### DEEL 1 : BEDRIJFSONTWIKKELING ####
@@ -357,19 +383,16 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   
   parameters_areaal = matrix(ncol = 3, byrow = T, data = c("opp_totaal", 1, "Oppervlakte [ha]",
+                                                           "oppgras", 1, "Oppervlakte grasland [ha]",
                                                            "opp_prgras", 1, "Oppervlakte productiegrasland [ha]",
-                                                           "opp_natuur", 1, "Oppervlakte natuur [ha]",
-                                                           "dzh_blijgras_aand", 1, "Aandeel blijvend grasland [%]",
-                                                           "oppklaver", 1, "Oppervlakte percelen met klaver [ha]",
-                                                           "opp_mais", 1, "Oppervlakte mais [ha]",
-                                                           "oppoverig", 1, "Oppervlakte overig [ha]"))
-  
-  
-  #Maken van de overzichten en exporteren
-
+                                                           "opp_natuurboolean", 2, "Aandeel bedrijven natuur [%]",
+                                                           "opp_natuurNA", 1, "Oppervlakte natuur [ha]",
+                                                           "opp_maisboolean", 2, "Aandeel bedrijven met eigen maisland [%]",
+                                                           "opp_maisNA", 1, "Oppervlakte maisland [ha]",
+                                                           "opp_overigboolean", 2, "Aandeel bedrijven met overig bouwland [%]",
+                                                           "opp_overigNA", 1, "Oppervlakte overig [ha]"))
   
 
-  
   dataset_VKX_gemiddeld_areaal = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_areaal)
   write_to_excel(dataset_VKX_gemiddeld_areaal)
   
@@ -406,10 +429,6 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   dataset_VKX_gemiddeld_vee = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_vee)
   write_to_excel(dataset_VKX_gemiddeld_vee)
-  
-
-  
-  
   
   parameters_benutting_bedrijf = matrix(ncol =3, byrow = T, data = c("kring1_benut_tot", 0, "Stikstofbenutting bedrijf [%]",
                                                                      "kring1_bedbal_ovrtot", 0, "Stikstofoverschot bedrijf [kg N / ha]",
@@ -495,15 +514,97 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   parameters_aankoop_voer = matrix(ncol = 3, byrow = T, data =  c(
     "aankoop_aanleg_gk_hoevboolean", 2, "Aandeel bedrijven aankoop graskuil [%]",
-    "aankoop_aanleg_gk_hoevNA", 0, "Aankoop graskuil [kg ds]",
     "aankoop_aanleg_gk_hoev_rantsoen", 0, "Aankoop graskuil van rantsoen [%]",
-    "aankoop_aanleg_sm_hoevNA", 0, "Aankoop snijmais [kg ds]",
-    "aankoop_aanleg_ov_hoevNA", 0, "Aankoop overig ruwvoer en bijproducten [kg ds]",
-    "aankoop_aanleg_kv_hoevNA", 0, "Aankoop krachtvoer [kg ds]",
+    "aankoop_aanleg_sm_hoevboolean", 2, "Aandeel bedrijven aankoop snijmais [%]",
+    "aankoop_aanleg_sm_hoev_rantsoen", 0, "Aankoop maiskuil van rantsoen [%]",
+    "aankoop_aanleg_kv_hoevboolean", 2, "Aandeel bedrijven aankoop krachtvoer [%]",
+    "aankoop_aanleg_kv_hoev_rantsoen", 0, "Aankoop krachtvoer van rantsoen [%]",
+    "aankoop_aanleg_ov_hoevboolean", 2, "Aandeel bedrijven aankoop overige producten [%]",
+    "aankoop_aanleg_ov_hoev_rantsoen", 0, "Aankoop overige producten van rantsoen [%]",
     "akvoer_n", 0, "Voeraankoop stikstof [kg N / ton melk]",
     "akvoer_p", 0 , "Voeraankoop fosfor [kg P / ton melk]"
+  ))
+  
+  dataset_VKX_gras_aankoop = dataset_VKX %>% filter(aankoop_aanleg_gk_hoevboolean>0) %>% group_by(PK_VKX)  %>% dplyr::summarise(count = n()) #%>% group_by(count) %>% dplyr::summarise(aantal = n())
+  dataset_VKX_gras_aankoop$Product = "Gras"
+  dataset_VKX_mais_aankoop = dataset_VKX %>% filter(aankoop_aanleg_sm_hoevboolean>0) %>% group_by(PK_VKX)  %>% dplyr::summarise(count = n()) #%>% group_by(count) %>% dplyr::summarise(aantal = n())
+  dataset_VKX_mais_aankoop$Product = "Mais"
+  
+  data_histogram = rbind(dataset_VKX_gras_aankoop, dataset_VKX_mais_aankoop)
+
+  plot = ggplot(data = data_histogram, aes( x = count, fill = Product)) +
+    theme_bw() +
+    geom_histogram(binwidth = 0.5, position = "dodge",alpha = 0.6) +
+    xlab("Aantal jaren voeraankoop") +
+    ylab("Aantal bedrijven") + 
+    hline()
+    scale_x_continuous(breaks = 1:8) +
+    scale_y_continuous(breaks = pretty_breaks()) + 
+    coord_cartesian(ylim = c(0,80), expand = F) +
+    scale_fill_manual(values = c(kleur_vka_groen, kleur_vka_rood))
+  print(plot)
+  
+  dataset_VKX_gemiddeld_aankoop = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_aankoop_voer)
+  write_to_excel(dataset_VKX_gemiddeld_aankoop)
+  
+  parameters_afvoer_gras = matrix(ncol = 3, byrow = T, data = c(
+    afv_gkp1_hoev, 0 , "Verkoop uit beginvoorraad [kg ds]",
+    afv_gkp2_hoev, 1,  "Verkoop uit aanleg [kg ds]",
+    afv_sm1_hoev, 0, "Verkoop uit beginvoorraad [kg ds]",
+    afv_sm2_hoev, 1, "Verkoop uit aanleg [kg ds]",
     
   ))
+  
+  #Een suggestie om bedrijven met een ruwvoeroverschot te ontdekken:
+  #Je zou het percentage eigen geteeld voer tov voerverbruik voor N, P en VEM kunnen nemen (pagina voeding) en vervolgens vergelijken met het aandeel N van eigen teelt in het rantsoen (of P of VEM). 
+  #Als het percentage eigen geteeld (veel) hoger is dan het aandeel eigen teelt in het rantsoen, dan heb je waarschijnlijk een bedrijf dat veel ruwvoer (over) heeft en toch veel krachtvoer voert.
+  
+  
+  #op basis van bedrijfskringloop.
+  parameters_kringloop_stikstof = matrix(ncol = 3, byrow = T, data = c(
+  "kring1_bedbal_aankv", 0, "Aanvoer N uit krachtvoer [kg / ha]",
+  "kring1_bedbal_aanrv", 0, "Aanvoer N uit ruwvoer en bijproducten [kg / ha]",
+
+  "kring1_veeaan_kv",0, "Aanvoer stikstof uit krachtvoer [kg / ha]",
+  "kring1_veeaan_gk",0, "Aanvoer stikstof uit graskuil [kg / ha]",
+  "kring1_veeaan_sm",0, "Aanvoer stikstof uit snijmais [kg / ha]",
+  "kring1_veeaan_vg",0, "Aanvoer stikstof uit weidegras [kg / ha]",
+  "kring1_veeaan_bp",0, "Aanvoer stikstof uit overige bijproducten [kg / ha]",
+  
+  "kring1_bedbal_afvvoe", 0, "Afvoer N uit voer [kg / ha]",
+  "kring1_bedbal_mutkv", 0, "Mutatie voorraad krachtvoer [kg / ha]",
+  "kring1_bedbal_mutrv", 0, "Mutatie uit voorraad ruwvoer en bijpdroducten [kg / ha]",
+  "kring1_minaan_vee", 0, "Aanvoer stikstof naar vee [kg / ha]",
+  "kring1_min_gewvee", 0, "Doorloop N van gewas naar vee [kg / ha]"
+  ))
+  
+  dataset_VKX_gemiddeld_kringloop_stikstof = bereken_gemiddelde_over_jaren(dataset_VKX , parameters_kringloop_stikstof)
+  write_to_excel(dataset_VKX_gemiddeld_kringloop_stikstof)
+  
+  #gk_mut_hoev
+  #sm_mut_hoev
+  #ov_mut_hoev
+  #kv_mut_hoev
+  
+  
+  
+  #pceigen_n
+  #pceigen_p
+  #pceigen_vem
+  #akvoer_n
+  #akvoer_P
+  #eiwiteig_tlt_gk
+  #eiwiteig_tlt_sm
+  #eiwiteig_tlt_ov
+  #eiwiteig_vbr_vg
+  #eiwiteig_vbr_gk
+  #eiwiteig_vbr_sm
+  #eiwiteig_vbr_ov
+  #eiwiteig_vbr_kv
+  #eiwiteig_vbr_mp
+  
+  #rantsoenverbruiken en aandelen. n_opname_mlk
+
   
   #Maken van de overzichten en exporteren
   dataset_VKX_gemiddeld_aankoop = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_aankoop_voer)
@@ -851,6 +952,61 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
                               "PP_ammoniak",
                               "PP_blijvend_grasland",
                               "PP_broeikasgas")
+  
+  
+  #### Fosfaat en BEP ####
+
+  parameters_fosfaat_bodem = matrix(ncol = 3, byrow = T, data = c(
+    "verl_bodbal2_ha", 0, "Fosfaatbodemoverschot [kg P2O5 / ha]",
+    "bodemoverschot_P_norm_boolean", 2, "Aandeel bedrijven met negatief overschot [%]",
+    "kring2_bodaan", 0, "Fosfaataanvoer bodem [kg P2O5 / ha]",
+    "kring2_bodafv", 0, "Fosfaatafvoer bodem [kg P2O5 / ha]",
+    "kring2_benut_bod", 0, "Fosfaatbenutting bodem [%]"
+  ))
+  
+  dataset_VKX_gemiddeld_fosfaat_bodem_zand = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "zand"), parameters_fosfaat_bodem)
+  write_to_excel(dataset_VKX_gemiddeld_fosfaat_bodem_zand)
+  dataset_VKX_gemiddeld_fosfaat_bodem_klei = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "klei"), parameters_fosfaat_bodem)
+  write_to_excel(dataset_VKX_gemiddeld_fosfaat_bodem_klei)
+  
+  parameters_BEP = matrix(ncol = 3, byrow = T, data = c(
+    "fosfaatnorm_hageneriek", 0, "Fosfaatgebruiksnorm [kg P2O5 / ha]",
+    "fosfaatnorm_haspecifiek3", 0, "BEP gemiddelde 3 jaar [kg P2O5 / ha]",
+    "BEP_voordeel_boolean", 2, "Aandeel bedrijven met BEP voordeel [%]"
+  ))
+  
+  dataset_VKX_gemiddeld_BEP_zand = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "zand"), parameters_BEP)
+  write_to_excel(dataset_VKX_gemiddeld_BEP_zand)
+  dataset_VKX_gemiddeld_BEP_klei = bereken_gemiddelde_over_jaren(dataset_VKX %>% filter(grondsoort == "klei"), parameters_BEP)
+  write_to_excel(dataset_VKX_gemiddeld_BEP_klei)
+  
+  data = dataAggregated %>% 
+    select(jaartal, BEP_voordeel_boolean, bodem_type) %>%
+    group_by(jaartal, bodem_type) %>%
+    summarise_all(mean) 
+  
+  
+  #PLOT VOOR ZAND
+  data = avg_per_landgebruik %>% select(columnNames[c("jaartal", "bodem_type", "fosfaatnorm_haspecifiek3", "gebrnorm2_ha", "kring2_bodaan"),2]) %>% 
+    filter(bodem_type == "zand") %>%
+    filter(jaartal > 2014)
+  
+  data = pivot_longer(data, cols = columnNames[c("fosfaatnorm_haspecifiek3", "gebrnorm2_ha", "kring2_bodaan"),1] )
+  data$name = columnNames[data$name,2]
+  
+  plot = ggplot() +
+    geom_bar(data = data, aes(x= jaartal, y = value, fill = name), stat = "identity", position = "dodge")+
+    scale_x_continuous(breaks = 2015:2019, minor_breaks =  NULL) +
+    coord_cartesian(ylim = c(60,100), xlim = c(2014+0.5,2020-0.5), expand = FALSE) +
+    xlab(columnNames["jaartal",2]) +
+    ylab("Fosfaat [kg / ha]") +
+    theme_light() +
+    theme(legend.position="top") +
+    scale_fill_discrete(name = "")
+  
+  print(plot)
+  ggsave("Fosfaatnorm_fosfaatbemesting_zand.png", width = 16, height = 8, units = "cm")
+  
   
   #### BROEIKASGASSEN ####
   
