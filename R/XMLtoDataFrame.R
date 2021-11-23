@@ -114,6 +114,9 @@ XMLtoDataFrame <- function(path_xml_files){
   dataset = dataset %>% dplyr::mutate_if(is_all_numeric, as.numeric)
   
   #Splitsen op basis van VEM 850 a 900
+  dataset = dataset %>% dplyr::filter(hoev >0)
+  dataset = dataset %>% dplyr::filter(!is.na(vem))
+  
   dataset = dataset %>% dplyr::mutate(vem_categorie = ifelse(vem > 750, "hoog", "laag"))
   
   dataset_xml_samengevat = dataset %>% dplyr::group_by(kvk_nummer, jaartal, feedtype, objecttype, vem_categorie) %>% dplyr::summarise(vem_gewogen = weighted.mean(vem, hoev), re_gewogen = weighted.mean(re, hoev), sum_product = sum(hoev, na.rm = T))
