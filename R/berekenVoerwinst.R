@@ -19,7 +19,7 @@
 #output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
 
 
-berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder = NULL, bijproducten_algemeen = TRUE, produce_plots = FALSE){
+berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_files = NULL, output_folder = NULL, bijproducten_algemeen = TRUE, produce_plots = FALSE){
   
   output_file_string = "zonder_XML"
   
@@ -50,11 +50,23 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
     source_url(script)
   }
   
+  
   #Inlezen van dataset
-  if(file.exists(path_dataset)){
-    dataset = getDataInFolder(path_dataset)
+  if(!is.null(path_dataset)){
+    if(file.exists(path_dataset)){
+      dataset = getDataInFolder(path_dataset)
+    } else {
+      stop("Path naar dataset bestaat niet!")
+    }
   } else {
-    stop("Path naar dataset bestaat niet!")
+    warning("Geen dataset wordt ingelezen vanuit bestand")
+    
+    if(is.null(dataset_VKX)){
+      stop("Geen VKX dataset gegeven!, maar ook geen input locatie voor ophalen van data")
+    } else {
+      dataset = dataset_VKX
+    }
+    
   }
   
   if(!is.null(output_folder)){
