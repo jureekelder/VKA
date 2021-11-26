@@ -225,7 +225,13 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
                      "aanleg_gk_re",
                      "opb_graspr_re_g_kg",
                      "efficientie_N",
-                     "voereff_melk"
+                     "voereff_melk",
+                     "rants_re_kvem",
+                     "gk_re_kvem",
+                     "kv_re_kvem",
+                     "pceigen_n_buurt",
+                     "benut_n_bod"
+                     
                      
                      
                      
@@ -676,6 +682,70 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
   print(plot)
   ggsave( "voerwinst_ha_opb_graspr_ds.png", width = 20, height = 12, units = "cm")
   
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = efficientie_N, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    xlab("Voerwinst [euro / 100 kg melk") +
+    ylab("Stikstofefficientie veestapel [%]")  +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_efficientieN.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = voereff_melk, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    xlab("Voerwinst [euro / 100 kg melk") +
+    ylab("Voerefficientie veestapel [kg melk / kg ds]")  +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_voerefficientie.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = rants_re_kvem, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    xlab("Voerwinst [euro / 100 kg melk") +
+    ylab("RE/kVEM verhouding rantsoen [-]")  +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_rants_re_kvem.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = pceigen_n_buurt, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    xlab("Voerwinst [euro / 100 kg melk") +
+    ylab("Eiwit eigen land + buurtaankoop [%]")  +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_pceigen_n_buurt.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = benut_n_bod, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    xlab("Voerwinst [euro / 100 kg melk") +
+    ylab("Bodembenutting stikstof [%]")  +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_benut_n_bod.png", width = 20, height = 12, units = "cm")
   
   
   plot = ggplot(data = dataset_voerwinst, aes(x = as.factor(jaartal), y = voerwinst_100kgmelk)) +
