@@ -114,7 +114,7 @@ XMLtoDataFrame <- function(path_xml_files){
   dataset = dataset %>% dplyr::mutate_if(is_all_numeric, as.numeric)
   
   #Splitsen op basis van VEM 850 a 900
-  dataset = dataset %>% dplyr::filter(hoev >0)
+  dataset = dataset %>% dplyr::filter(hoev > 0)
   dataset = dataset %>% dplyr::filter(!is.na(vem))
   
   dataset = dataset %>% dplyr::mutate(vem_categorie = ifelse(vem > 750, "hoog", "laag"))

@@ -14,7 +14,7 @@
 
 
 #Voor testen:
-#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXML"
+#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/Input_XML_2018_2020"
 #path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Dataset_VKA_2018_2020"
 #output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
 
@@ -130,16 +130,25 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
   correctie_re_dve_krachtvoer = 0.70
   prijs_dve_krachtvoer = 85
 
-  correctiefactor_krachtvoer = 1.07485
+  ds_gehalte_krachtvoer = 0.897
+  ds_gehalte_melkpoeder = 0.963
+  ds_gehalte_overig_ruwvoer = 0.90
+  
+  #Deze aanpassen naar VKA gemiddelde correcitefactor_krachtvoer.
+  gemiddeld_VKA_kv_geh_vem = 1113 * ds_gehalte_krachtvoer
+  gemiddeld_VKA_kv_geh_re = 210 * ds_gehalte_krachtvoer
+  
+  voederwaardeprijs_krachtvoer = (gemiddeld_VKA_kv_geh_vem / 1000) * prijs_kvem_krachtvoer + (gemiddeld_VKA_kv_geh_re * correctie_re_dve_krachtvoer / 1000) * prijs_dve_krachtvoer
+  
+  norm_prijs_krachtvoer = 27.50 #op basis van KWIN
+  
+  correctiefactor_krachtvoer = norm_prijs_krachtvoer / voederwaardeprijs_krachtvoer
   procent_bedrijfsspecifiek_krachtvoer = 1
-  norm_prijs_krachtvoer = 27.50
   toeslag_mineralen = 0.4875
   prijs_mineralen = 0.600 # per kg product
   
 
-  ds_gehalte_krachtvoer = 0.897
-  ds_gehalte_melkpoeder = 0.963
-  ds_gehalte_overig_ruwvoer = 0.90
+
   
   prijs_overig_ruwvoer_ds = 130/(1000*0.9)
   
@@ -208,7 +217,18 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
                      "kvper100kgmelk",
                      "rants_geh_re",
                      "dzh_co2_melkprod",
-                     "em_nh3_tonmelk"
+                     "em_nh3_tonmelk", 
+                     "melkperha",
+                     "jvper10mk",
+                     "aanleg_gk_hoev", 
+                     "gk_geh_re",
+                     "aanleg_gk_re",
+                     "opb_graspr_re_g_kg",
+                     "efficientie_N",
+                     "voereff_melk"
+                     
+                     
+                     
                      
                      )
   
@@ -232,10 +252,7 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
     
     return(melkprijs)
     
-    
   }
-  
-
   
   dataset_voerwinst = dataset_voerwinst %>% dplyr::rowwise() %>% dplyr::mutate(melkprijs = bereken_melkprijs(
     procent_vet = melk_vet,
@@ -360,10 +377,15 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_eigen_maiskuil = ifelse(mutatie_maiskuil > 0, (opb_mais_totaal_ds - mutatie_graskuil) * kosten_mais_totaal_kg_ds, opb_mais_totaal_ds * kosten_mais_totaal_kg_ds ))
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_aankoop_maiskuil = ifelse(mutatie_maiskuil < 0, abs(mutatie_maiskuil) * prijs_aankoop_maiskuil, 0))
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_mais_rantsoen = kosten_eigen_maiskuil + kosten_aankoop_maiskuil)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_mais_rantsoen = ifelse(is.na(kosten_mais_rantsoen), 0, kosten_mais_rantsoen))
   
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(saldo_verkoop_overschot_mais = ifelse(mutatie_maiskuil > 0, mutatie_maiskuil * (prijs_verkoop_maiskuil - kosten_mais_totaal_kg_ds), 0))
   
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_overig_ruwvoer = (ov_verbruik_kuil * prijs_overig_ruwvoer_ds))
+  
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_geh_vem_product = kv_geh_vem * ds_gehalte_krachtvoer)
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_geh_re_product = kv_geh_re * ds_gehalte_krachtvoer)
+  
   
   
   if(bijproducten_algemeen){
@@ -373,13 +395,14 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
     dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_totaal = (kosten_bijproducten_ton_ds * ov_verbruik_kuil / 1000))
     
     #Kosten krachtvoer
+    
     #HOE STAAT BIJ ANDERE JAREN HET GEHALTE KRACHTVOER?
     
-    #dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil_kg_product = kv_verbruik_kuil / ds_gehalte_krachtvoer)
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil_kg_product = kv_verbruik_kuil / 1)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil_kg_product = kv_verbruik_kuil / ds_gehalte_krachtvoer)
+    #dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_verbruik_kuil_kg_product = kv_verbruik_kuil / 1)
     
     #Bedrijfsspecifieke kv prijs is gebaseerd op ds.
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_prijs_bedrijf = ((((kv_geh_vem/1000 * prijs_kvem_krachtvoer) + (((kv_geh_re * correctie_re_dve_krachtvoer) / 1000) * prijs_dve_krachtvoer)) * correctiefactor_krachtvoer * procent_bedrijfsspecifiek_krachtvoer) + (norm_prijs_krachtvoer * (1-procent_bedrijfsspecifiek_krachtvoer))) + toeslag_mineralen)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_prijs_bedrijf = ((((kv_geh_vem_product/1000 * prijs_kvem_krachtvoer) + (((kv_geh_re_product * correctie_re_dve_krachtvoer) / 1000) * prijs_dve_krachtvoer)) * correctiefactor_krachtvoer * procent_bedrijfsspecifiek_krachtvoer) + (norm_prijs_krachtvoer * (1-procent_bedrijfsspecifiek_krachtvoer))) + toeslag_mineralen)
     
     dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_kosten_totaal = (kv_verbruik_kuil_kg_product * kv_prijs_bedrijf / 100))
   
@@ -403,21 +426,27 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
     #Samenvoegen met grote dataset:
     dataset_voerwinst = inner_join(dataset_voerwinst, dataset_xml, by = c("jaartal", "kvk_nummer"))
     
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verbruik_Overigrvbp_hoog = ifelse(verbruik_Overigrvbp_hoog < 1, NA, verbruik_Overigrvbp_hoog))
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verbruik_Overigrvbp_laag = ifelse(verbruik_Overigrvbp_laag < 1, NA, verbruik_Overigrvbp_laag))
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verbruik_Krachtvoer_hoog = ifelse(verbruik_Krachtvoer_hoog < 1, NA, verbruik_Krachtvoer_hoog))
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(verbruik_Krachtvoer_laag = ifelse(verbruik_Krachtvoer_laag < 1, NA, verbruik_Krachtvoer_laag))
     
-    #Hoe zit het met ds (zijn de gehalten uit input XML in ds of kg product?)
-    
-    #HOOG VEM BIJPRODUCTEN
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_hoog_vem_totaal = verbruik_Overigrvbp_hoog / 1000 * (verbruik_re_Overigrvbp_hoog * correctie_re_dve_bijproduct * prijs_dve_bijproduct + verbruik_vem_Overigrvbp_hoog * prijs_kvem_bijproduct) / 100 * procent_voederwaarde_prijs_bijproduct)
+    #HOOG VEM BIJPRODUCTE
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_hoog_vem_totaal = 
+                                                              ifelse(is.na(verbruik_Overigrvbp_hoog),0, verbruik_Overigrvbp_hoog / 1000 * (verbruik_re_Overigrvbp_hoog * correctie_re_dve_bijproduct * prijs_dve_bijproduct + verbruik_vem_Overigrvbp_hoog * prijs_kvem_bijproduct) / 100 * procent_voederwaarde_prijs_bijproduct))
     #LAAG VEM BIJPRODUCTEN
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_laag_vem_totaal = verbruik_Overigrvbp_laag * prijs_overig_ruwvoer_ds)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_laag_vem_totaal = 
+                                                              ifelse(is.na(verbruik_Overigrvbp_laag),0,verbruik_Overigrvbp_laag * prijs_overig_ruwvoer_ds))
     
     dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_bijproducten_totaal = kosten_bijproducten_hoog_vem_totaal + kosten_bijproducten_laag_vem_totaal )
     
     #HOOG VEM KRACHTVOER
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_hoog_vem_totaal = verbruik_Krachtvoer_hoog / 1000 * (verbruik_re_Krachtvoer_hoog * correctie_re_dve_krachtvoer * prijs_dve_krachtvoer + verbruik_vem_Overigrvbp_hoog * prijs_kvem_krachtvoer) / 100 * correctiefactor_krachtvoer)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_hoog_vem_totaal = 
+                                                              ifelse(is.na(verbruik_Krachtvoer_hoog), 0, verbruik_Krachtvoer_hoog / 1000 * (verbruik_re_Krachtvoer_hoog * correctie_re_dve_krachtvoer * prijs_dve_krachtvoer + verbruik_vem_Krachtvoer_hoog * prijs_kvem_krachtvoer) / 100 * correctiefactor_krachtvoer))
     
     #LAAG VEM KRACHTVOER --> MINERALEN
-    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_laag_vem_totaal = verbruik_Krachtvoer_laag * prijs_mineralen) #verbruik_Krachtvoer_laag * ds_gehalte_ * prijs_overig_ruwvoer_ds)
+    dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kosten_krachtvoer_laag_vem_totaal = 
+                                                              ifelse(is.na(verbruik_Krachtvoer_laag), 0, verbruik_Krachtvoer_laag * prijs_mineralen)) #verbruik_Krachtvoer_laag * ds_gehalte_ * prijs_overig_ruwvoer_ds)
     
     dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_kosten_totaal = kosten_krachtvoer_hoog_vem_totaal + kosten_krachtvoer_laag_vem_totaal )
     
@@ -436,94 +465,217 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(voerwinst_100kgmelk = round(voerwinst_totaal / melk_bedr * 100, 2))
   
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(saldo_ruwvoer_verkoop = saldo_verkoop_overschot_gras + saldo_verkoop_overschot_mais)
+
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(jaartal_factor = as.factor(jaartal))
   
+  if(FALSE){
+  #Welke bedrijven zijn voor 3 jaar vertegenwoordigd?
+  
+  dataset_voerwinst_3jaren = pull(dataset_voerwinst %>% 
+    dplyr::group_by(Lidmaatschapsnummer) %>% 
+    dplyr::summarise(count = n()) %>% 
+    dplyr::filter(count == 3) %>%
+    dplyr::select(Lidmaatschapsnummer))
+  
+  dataset_voerwinst_gem = dataset_voerwinst %>%
+    dplyr::filter(Lidmaatschapsnummer %in% dataset_voerwinst_3jaren) %>%
+    dplyr::group_by(Lidmaatschapsnummer) %>%
+    dplyr::summarise_all(mean, na.rm = T)
+  
+  dataset_voerwinst_gem = dataset_voerwinst_gem %>% dplyr::mutate(beweiding = ifelse(urenweidenmelkkoeien > 0, "Met weidegang", "Zonder weidegang"))
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(beweiding = ifelse(urenweidenmelkkoeien > 0, "Met weidegang", "Zonder weidegang"))
+  
+  
+  dataset_voerwinst_gem$jaartal_factor = "Gemiddelde 2018-2020"
+  
+  dataset_voerwinst_alles = rbind(dataset_voerwinst, dataset_voerwinst_gem)
+  
+  #Analyse
+  library(broom)
+  
+  fitted_models = dataset_voerwinst_gem %>% dplyr::group_by(beweiding) %>% do(model = lm(voerwinst_ha ~ melkperha, data = .))
+  print(fitted_models)
+  
+  #Uitschakelen intensiteitseffect
+  if(FALSE){
+  lm.model = lm(voerwinst_ha ~ melkperha, data = dataset_voerwinst_gem %>% dplyr::filter(urenweidenmelkkoeien > 0))
+  predicted_df_beweiding = data.frame(regressielijn = predict(lm.model, dataset_voerwinst_gem), melkperha =   dataset_voerwinst_gem$melkperha)
+  print(summary(lm.model))
+  
+  lm.model = lm(voerwinst_ha ~ melkperha, data = dataset_voerwinst_gem %>% dplyr::filter(urenweidenmelkkoeien < 1))
+  predicted_df_geen_beweiding = data.frame(regressielijn = predict(lm.model, dataset_voerwinst_gem), melkperha =   dataset_voerwinst_gem$melkperha)
+  print(summary(lm.model))
+  }
+  }
+
   if(produce_plots){
+    
+    #Kleuren van VKA
+    kleur_vka_rood = rgb(167, 25, 48, maxColorValue = 255)
+    kleur_vka_groen = rgb(0, 102, 67, maxColorValue = 255)
+    
   library(ggplot2)
   library(ggforce)
+    
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = melkperha, y = voerwinst_ha, color = beweiding)) +
+    theme_bw() +
+    geom_point(alpha = 0.6) +
+    #geom_smooth(method = "lm", se = FALSE)  +
+    geom_abline(intercept = fitted_models$model[[1]]$coefficients[1], slope = fitted_models$model[[1]]$coefficients[2], color = kleur_vka_groen, size = 1) +
+    geom_abline(intercept = fitted_models$model[[2]]$coefficients[1], slope = fitted_models$model[[2]]$coefficients[2], color = kleur_vka_rood, size = 1) +
+    theme(legend.title = element_blank()) +
+    xlab("Intensiteit [kg melk / ha]") +
+    ylab("Voerwinst [euro / ha]") +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6), limits = c(10000,30000)) +
+    
+    scale_color_manual(values = c(kleur_vka_groen, kleur_vka_rood)) +
+    theme(legend.position = "top")
   
-  plot = ggplot(data = dataset_voerwinst, aes(y = voerwinst_100kgmelk, x = (melk_bedr/opp_totaal), color = as.factor(jaartal)))+
+    #geom_line(color = "red", data = predicted_df_beweiding, aes(x = melkperha, y = regressielijn)) +
+    #geom_line(color = "orange", data = predicted_df_geen_beweiding, aes(x = melkperha, y = regressielijn))
+  print(plot)
+  ggsave("melkperha_voerwinstha_opstallers.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(y = voerwinst_100kgmelk, x = melkperha, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     xlab("Intensiteit [kg melk / ha]") +
     ylab("Voerwinst [euro / 100 kg melk]") +
-    xlim(8000,35000)
+    xlim(8000,35000) +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
+    
+    
   print(plot)
   ggsave( "intensiteit_vs_voerwinst.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = pceigen_n, color = as.factor(jaartal)))+
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = pceigen_n, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     xlab("Voerwinst [euro / 100 kg melk]") +
     ylab("Aandeel eiwit van eigen land [%]") +
-    xlim(10,30)
+    xlim(10,30) +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
   print(plot)
   ggsave( "voerwinst_100kgmelk_eiwit_eigen_land.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_ha, y = pceigen_n, color = as.factor(jaartal)))+
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_ha, y = pceigen_n, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     xlab("Voerwinst [euro / ha]") +
-    ylab("Aandeel eiwit van eigen land [%]") 
+    ylab("Aandeel eiwit van eigen land [%]")  +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
   print(plot)
   ggsave( "voerwinst_ha_eiwit_eigen_land.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = verl_bodbal1_ha, color = as.factor(jaartal)))+
-    theme_bw() +
-    geom_point() +
-    geom_smooth(method = "lm", se = FALSE) +
-    xlab("Voerwinst [euro / 100 kg melk]") +
-    ylab("Stikstofbodemoverschot [kg N / ha]") +
-    xlim(10,30)
-  print(plot)
-  ggsave( "voerwinst_100kgmelk_n_overschot.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_ha, y = verl_bodbal1_ha, color = as.factor(jaartal)))+
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_ha, y = verl_bodbal1_ha, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     ylab("Stikstofbodemoverschot [kg N / ha]") +
-    xlab("Voerwinst [euro / ha]") 
+    xlab("Voerwinst [euro / ha]")  +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
   print(plot)
   ggsave( "voerwinst_ha_n_overschot.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = kvper100kgmelk, color = as.factor(jaartal)))+
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = kvper100kgmelk, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     ylab("Krachtvoerverbruik [kg / 100 kg melk]") +
-    xlab("Voerwinst [euro / 100 kg melk]") 
+    xlab("Voerwinst [euro / 100 kg melk]") +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
   print(plot)
   ggsave( "voerwinst_100kgmelk_kvverbruik.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = rants_geh_re, color = as.factor(jaartal)))+
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_ha, y = rants_geh_re, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     ylab("RE-gehalte rantsoen [g/kg ds]") +
-    xlab("Voerwinst [euro / 100 kg melk]") 
+    xlab("Voerwinst [euro / ha]") +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
   print(plot)
   ggsave( "voerwinst_100kgmelk_rantsoenre.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = dzh_co2_melkprod, color = as.factor(jaartal)))+
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = dzh_co2_melkprod, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     ylab("BKG emissies [g CO2-eq/kg FPCM]") +
-    xlab("Voerwinst [euro / 100 kg melk]") 
+    xlab("Voerwinst [euro / 100 kg melk]") +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6), limits = c(900,1300)) +
+    scale_color_manual(values = c(kleur_vka_rood))
   print(plot)
   ggsave( "voerwinst_100kgmelk_bkg.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_voerwinst, aes(x = voerwinst_100kgmelk, y = em_nh3_tonmelk, color = as.factor(jaartal)))+
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = em_nh3_tonmelk, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     ylab("NH3 emissie [kg / 1000 kg melk]") +
-    xlab("Voerwinst [euro / 100 kg melk]") 
+    xlab("Voerwinst [euro / 100 kg melk]") +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
   print(plot)
   ggsave( "voerwinst_100kgmelk_ammoniak.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_ha, y = jvper10mk, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("Jongveebzetting [jv / 10]") +
+    xlab("Voerwinst [euro / 100 kg melk]") +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_ha_jvper10mk.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_ha, y = opb_graspr_ds, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("Opbrengst productiegras [kg ds]") +
+    xlab("Voerwinst [euro / 100 kg melk]") +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_ha_opb_graspr_ds.png", width = 20, height = 12, units = "cm")
+  
   
   
   plot = ggplot(data = dataset_voerwinst, aes(x = as.factor(jaartal), y = voerwinst_100kgmelk)) +
@@ -560,7 +712,8 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
   print(plot)
   ggsave( "voerwinst_ha_verdelig.png", width = 20, height = 12, units = "cm")
   
-  write.xlsx(dataset_voerwinst, paste("data_voerwinst_",output_file_string,".xlsx",sep=""), asTable = T, overwrite = T)
+  write.xlsx(dataset_voerwinst_alles, paste("data_voerwinst_",output_file_string,".xlsx",sep=""), asTable = T, overwrite = T)
+  write.xlsx(dataset_xml, "data_input_xml.xlsx", asTable = T, overwrite = T)
   }
   
   return(as.data.frame(dataset_voerwinst))
@@ -568,11 +721,35 @@ berekenVoerwinst <- function(path_dataset, path_xml_files = NULL, output_folder 
 }
 
 #Voor testen:
-#if(TRUE){
-#path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXML"
-#path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Dataset_VKA_2018_2020"
-#output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
+if(FALSE){
+path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/Input_XML_2018_2020"
+path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Dataset_VKA_2018_2020"
+output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
 
-#output = berekenVoerwinst(path_dataset = path_dataset, path_xml_files = path_xml_files, output_folder = output_folder, bijproducten_algemeen = F, produce_plots = T)
+output = berekenVoerwinst(path_dataset = path_dataset, path_xml_files = path_xml_files, output_folder = output_folder, bijproducten_algemeen = F, produce_plots = T)
 
-#}
+}
+
+if(FALSE){
+output_A = output
+
+data_merge = inner_join(resultaat_algemeen, resultaat_xml, by = c("jaartal", "kvk_nummer"), suffix = c(".XML",".EXC"))
+
+plot = ggplot(data = data_merge, aes(x = voerwinst_ha.XML, y = voerwinst_ha.EXC))+
+  theme_bw() +
+  geom_point( color = kleur_vka_groen, alpha = 0.6) +
+  xlab("Voerwinst INPUT XML [euro / ha] ") +
+  ylab("Voerwinst EXC [euro / ha] ") +
+  scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+  scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+
+  geom_abline(intercept =  0, slope = 1, color = kleur_vka_rood, size = 1)
+print(plot)
+ggsave("Vergelijking_XML_EXC.png", width = 20, height = 12, units = "cm")
+
+data_merge$diff = (data_merge$voerwinst_ha.XML - data_merge$voerwinst_ha.EXC) 
+sqrt(mean(data_merge$diff^2))
+mean((data_merge$diff / data_merge$voerwinst_ha.EXC * 100))
+
+cor(data_merge$voerwinst_ha.EXC, data_merge$voerwinst_ha.XML, method = c( "spearman"))
+}

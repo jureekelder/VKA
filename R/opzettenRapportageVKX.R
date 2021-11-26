@@ -36,9 +36,6 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     source_url(script)
   }
   
-  #Kleuren van VKA
-  kleur_vka_rood = rgb(167, 25, 48, maxColorValue = 255)
-  kleur_vka_groen = rgb(0, 102, 67, maxColorValue = 255)
   
   #Functie voor wegschrijven van tabellen
   standard_template_path = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Figuren/template.xlsx"
@@ -246,6 +243,7 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     dataset_VKX$kring2_bodafv = dataset_VKX$kring2_bodafv_gk + dataset_VKX$kring2_bodafv_vg + dataset_VKX$kring2_bodafv_sm + dataset_VKX$kring2_bodafv_ov
     
   }
+  
   
   #### DEEL 1 : BEDRIJFSONTWIKKELING ####
   
