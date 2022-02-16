@@ -264,8 +264,10 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
     melkprijs  = procent_vet / 100 * prijs_vet + procent_eiwit / 100 * prijs_eiwit + procent_lactose / 100 * prijs_lactose
     
     #Als weide-uren > criterium, dan de weidepremie toevoegen aan melkprijs
-    if(uren_weidegang >= criterium_weidegang){
-      melkprijs = melkprijs + netto_weidepremie
+    if(!is.na(uren_weidegang) & uren_weidegang > 0){
+      if(uren_weidegang >= criterium_weidegang){
+        melkprijs = melkprijs + netto_weidepremie
+      }
     }
     
     return(melkprijs)
@@ -486,7 +488,10 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
 
   dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(jaartal_factor = as.factor(jaartal))
   
-  if(FALSE){
+  dataset_voerwinst = dataset_voerwinst %>% dplyr::mutate(kv_kosten_totaal100kgmelk = kv_kosten_totaal / melk_bedr * 100)
+  
+  
+  if(TRUE){
   #Welke bedrijven zijn voor 3 jaar vertegenwoordigd?
   
   dataset_voerwinst_3jaren = pull(dataset_voerwinst %>% 
@@ -625,6 +630,21 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
   print(plot)
   ggsave( "voerwinst_100kgmelk_kvverbruik.png", width = 20, height = 12, units = "cm")
   
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = kv_kosten_totaal100kgmelk, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("Krachtvoervkosten [euro / 100 kg melk]") +
+    xlab("Voerwinst [euro / 100 kg melk]") +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_100kgmelk_kvkosten.png", width = 20, height = 12, units = "cm")
+  
+  
   plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_ha, y = rants_geh_re, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
@@ -664,12 +684,42 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
   print(plot)
   ggsave( "voerwinst_100kgmelk_ammoniak.png", width = 20, height = 12, units = "cm")
   
-  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_ha, y = jvper10mk, color = as.factor(jaartal_factor)))+
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = jvper10mk, color = as.factor(jaartal_factor)))+
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     ylab("Jongveebzetting [jv / 10]") +
     xlab("Voerwinst [euro / 100 kg melk]") +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_100kg_jvper10mk.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_100kgmelk, y = opb_graspr_ds, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("Opbrengst productiegras [kg ds]") +
+    xlab("Voerwinst [euro / 100 kg melk]") +
+    theme(legend.position = "none") +
+    theme(legend.title = element_blank()) +
+    scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
+    
+    scale_color_manual(values = c(kleur_vka_rood))
+  print(plot)
+  ggsave( "voerwinst_100kg_opb_graspr_ds.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = dataset_voerwinst_gem, aes(x = voerwinst_ha, y = jvper10mk, color = as.factor(jaartal_factor)))+
+    theme_bw() +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    ylab("Jongveebzetting [jv / 10]") +
+    xlab("Voerwinst [euro / ha]") +
     theme(legend.position = "none") +
     theme(legend.title = element_blank()) +
     scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
@@ -684,7 +734,7 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
     ylab("Opbrengst productiegras [kg ds]") +
-    xlab("Voerwinst [euro / 100 kg melk]") +
+    xlab("Voerwinst [euro / ha]") +
     theme(legend.position = "none") +
     theme(legend.title = element_blank()) +
     scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE), breaks = pretty_breaks(n = 6)) +
@@ -698,7 +748,7 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
-    xlab("Voerwinst [euro / 100 kg melk") +
+    xlab("Voerwinst [euro / 100 kg melk]") +
     ylab("Stikstofefficientie veestapel [%]")  +
     theme(legend.position = "none") +
     theme(legend.title = element_blank()) +
@@ -711,7 +761,7 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
-    xlab("Voerwinst [euro / 100 kg melk") +
+    xlab("Voerwinst [euro / 100 kg melk]") +
     ylab("Voerefficientie veestapel [kg melk / kg ds]")  +
     theme(legend.position = "none") +
     theme(legend.title = element_blank()) +
@@ -724,7 +774,7 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
-    xlab("Voerwinst [euro / 100 kg melk") +
+    xlab("Voerwinst [euro / 100 kg melk]") +
     ylab("RE/kVEM verhouding rantsoen [-]")  +
     theme(legend.position = "none") +
     theme(legend.title = element_blank()) +
@@ -737,7 +787,7 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
-    xlab("Voerwinst [euro / 100 kg melk") +
+    xlab("Voerwinst [euro / 100 kg melk]") +
     ylab("Eiwit eigen land + buurtaankoop [%]")  +
     theme(legend.position = "none") +
     theme(legend.title = element_blank()) +
@@ -750,7 +800,7 @@ berekenVoerwinst <- function(path_dataset = NULL, dataset_VKX = NULL, path_xml_f
     theme_bw() +
     geom_point() +
     geom_smooth(method = "lm", se = FALSE) +
-    xlab("Voerwinst [euro / 100 kg melk") +
+    xlab("Voerwinst [euro / 100 kg melk]") +
     ylab("Bodembenutting stikstof [%]")  +
     theme(legend.position = "none") +
     theme(legend.title = element_blank()) +
@@ -808,7 +858,7 @@ path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_V
 path_dataset = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Dataset_VKA_2018_2020"
 output_folder = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst"
 
-output = berekenVoerwinst(path_dataset = path_dataset, path_xml_files = path_xml_files, output_folder = output_folder, bijproducten_algemeen = F, produce_plots = T)
+output = berekenVoerwinst(path_dataset = path_dataset, dataset_VKX = NULL, path_xml_files = path_xml_files, output_folder = output_folder, bijproducten_algemeen = T, produce_plots = T)
 
 }
 

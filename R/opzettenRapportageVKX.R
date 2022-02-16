@@ -36,6 +36,13 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     source_url(script)
   }
   
+  #Kleuren VKA
+  kleur_vka_rood = rgb(167, 25, 48, maxColorValue = 255)
+  kleur_vka_groen = rgb(0, 102, 67, maxColorValue = 255)
+  
+  kleur_vka_oranje = rgb(233, 131, 0, maxColorValue = 255)
+  
+  kleur_vka_geel = rgb(204, 204, 0, maxColorValue = 255)
   
   #Functie voor wegschrijven van tabellen
   standard_template_path = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Figuren/template.xlsx"
@@ -519,9 +526,53 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     "aankoop_aanleg_kv_hoev_rantsoen", 0, "Aankoop krachtvoer van rantsoen [%]",
     "aankoop_aanleg_ov_hoevboolean", 2, "Aandeel bedrijven aankoop overige producten [%]",
     "aankoop_aanleg_ov_hoev_rantsoen", 0, "Aankoop overige producten van rantsoen [%]",
-    "akvoer_n", 0, "Voeraankoop stikstof [kg N / ton melk]",
-    "akvoer_p", 0 , "Voeraankoop fosfor [kg P / ton melk]"
+    "akvoer_n", 1, "Voeraankoop stikstof [kg N / ton melk]",
+    "akvoer_p", 1 , "Voeraankoop fosfor [kg P / ton melk]"
   ))
+  
+  dataset_VKX_gemiddeld_aankoop = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_aankoop_voer)
+  write_to_excel(dataset_VKX_gemiddeld_aankoop)
+  
+  dataset_VKX = dataset_VKX %>% mutate(jurtest = (gr_verbruik + gk_verbruik)/(opb_graspr_ds*opp_prgras))
+  
+  dataset_VKX = dataset_VKX %>% mutate(jurtest2 = (kring1_bedbal_aankv) * opp_totaal / melk_bedr * 100)
+  dataset_VKX = dataset_VKX %>% mutate(jurtest1 = (kring1_bedbal_afvvoe) * opp_totaal / melk_bedr * 100)
+  dataset_VKX = dataset_VKX %>% mutate(kring1_bedbal_afvvoeNA = ifelse(kring1_bedbal_afvvoe < 1, NA, kring1_bedbal_afvvoe))
+  dataset_VKX = dataset_VKX %>% mutate(jurtest3 = jurtest2/(kring1_bedbal_afvvoeNA  * opp_totaal / melk_bedr * 100)) 
+
+  
+  data_plot = (dataset_VKX %>% filter(jaartal>2017) %>% group_by(Lidmaatschapsnummer) %>%
+                 dplyr::summarise_all(mean) %>%
+                 dplyr::mutate(intensiteit = cut(melkperha, c(0, 12500,15000,17500,20000,22500,25000,90000), 
+                                                 labels = c("<12500","12500-15000","15000-17500","17500-20000","20000-22500","22500-25000",">25000"))))
+  
+  data_plot = data_plot %>% mutate(Verkoop = ifelse(is.na(jurtest3), "Incidenteel", "Structureel"))
+  
+  plot = ggplot(data = data_plot, aes(x = jurtest1, y = jurtest2, color = Verkoop)) +
+    theme_bw() +
+    xlab("Afvoer stikstof uit ruwvoer [kg N / 100 kg melk]") +
+    ylab("Aanvoer stikstof uit krachtover [kg N / 100 kg melk]") +
+    geom_point(size = 2) +
+
+    #guides(color = "none") +
+    scale_color_manual(values = c(kleur_vka_groen, kleur_vka_rood)) +
+    theme(legend.position = "top") +
+    ylim(0.5,1.25)
+
+  print(plot)
+  ggsave( "zelfvoorzienendheid.png", width = 20, height = 12, units = "cm")
+  
+  
+  plot = ggplot(data = data_plot, aes(x = melkperha, y = kring1_bedbal_aanrv)) +
+    theme_bw() +
+    xlab("Intensiteit [kg melk / ha]") +
+    ylab("Aanvoer stikstof uit ruwvoer en bijproducten [kg N / ha]") +
+    geom_point(size = 2, color = kleur_vka_groen) +
+    geom_smooth(se = FALSE, method = "lm", color = kleur_vka_rood) +
+    scale_x_continuous(breaks = pretty_breaks(n = 6), labels = function(x) format(x, big.mark = ".", scientific = FALSE)) 
+
+  print(plot)
+  ggsave( "aankoop_intensiteit.png", width = 20, height = 12, units = "cm")
   
   dataset_VKX_gras_aankoop = dataset_VKX %>% filter(aankoop_aanleg_gk_hoevboolean>0) %>% group_by(PK_VKX)  %>% dplyr::summarise(count = n()) #%>% group_by(count) %>% dplyr::summarise(aantal = n())
   dataset_VKX_gras_aankoop$Product = "Gras"
@@ -532,18 +583,18 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
 
   plot = ggplot(data = data_histogram, aes( x = count, fill = Product)) +
     theme_bw() +
-    geom_histogram(binwidth = 0.5, position = "dodge",alpha = 0.6) +
+    geom_histogram(binwidth = 0.5, position = position_dodge(0.6),alpha = 1) +
     xlab("Aantal jaren voeraankoop") +
     ylab("Aantal bedrijven") + 
-    hline()
     scale_x_continuous(breaks = 1:8) +
-    scale_y_continuous(breaks = pretty_breaks()) + 
-    coord_cartesian(ylim = c(0,80), expand = F) +
-    scale_fill_manual(values = c(kleur_vka_groen, kleur_vka_rood))
+    scale_y_continuous(breaks = pretty_breaks(n = 6)) + 
+    coord_cartesian(ylim = c(0,200), expand = F) +
+    scale_fill_manual(values = c(kleur_vka_groen, kleur_vka_rood)) +
+    theme(legend.position = "top")
   print(plot)
+  ggsave( "aankoop.png", width = 20, height = 12, units = "cm")
   
-  dataset_VKX_gemiddeld_aankoop = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_aankoop_voer)
-  write_to_excel(dataset_VKX_gemiddeld_aankoop)
+
   
   parameters_afvoer_gras = matrix(ncol = 3, byrow = T, data = c(
     afv_gkp1_hoev, 0 , "Verkoop uit beginvoorraad [kg ds]",
@@ -558,20 +609,13 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   #Als het percentage eigen geteeld (veel) hoger is dan het aandeel eigen teelt in het rantsoen, dan heb je waarschijnlijk een bedrijf dat veel ruwvoer (over) heeft en toch veel krachtvoer voert.
   
   
+
+  
   #op basis van bedrijfskringloop.
   parameters_kringloop_stikstof = matrix(ncol = 3, byrow = T, data = c(
   "kring1_bedbal_aankv", 0, "Aanvoer N uit krachtvoer [kg / ha]",
   "kring1_bedbal_aanrv", 0, "Aanvoer N uit ruwvoer en bijproducten [kg / ha]",
 
-  "kring1_veeaan_kv",0, "Aanvoer stikstof uit krachtvoer [kg / ha]",
-  "kring1_veeaan_gk",0, "Aanvoer stikstof uit graskuil [kg / ha]",
-  "kring1_veeaan_sm",0, "Aanvoer stikstof uit snijmais [kg / ha]",
-  "kring1_veeaan_vg",0, "Aanvoer stikstof uit weidegras [kg / ha]",
-  "kring1_veeaan_bp",0, "Aanvoer stikstof uit overige bijproducten [kg / ha]",
-  
-  "kring1_bedbal_afvvoe", 0, "Afvoer N uit voer [kg / ha]",
-  "kring1_bedbal_mutkv", 0, "Mutatie voorraad krachtvoer [kg / ha]",
-  "kring1_bedbal_mutrv", 0, "Mutatie uit voorraad ruwvoer en bijpdroducten [kg / ha]",
   "kring1_minaan_vee", 0, "Aanvoer stikstof naar vee [kg / ha]",
   "kring1_min_gewvee", 0, "Doorloop N van gewas naar vee [kg / ha]"
   ))
@@ -664,6 +708,78 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   #Maken van de overzichten en exporteren
   dataset_VKX_gemiddeld_eiwit_eigen_teelt = bereken_gemiddelde_over_jaren(dataset_VKX, parameters_eiwit_eigen_teelt)
   write_to_excel(dataset_VKX_gemiddeld_eiwit_eigen_teelt)
+  
+  dataset_VKX = dataset_VKX %>% mutate(eiwiteigenlandcategoriebuurt = cut(pceigen_n_buurt, c(0, 50, 55, 60, 65, 70, 75, 200), labels = c("<50","50-55","55-60","60-65","65-70","70-75", ">75")))
+  dataset_VKX = dataset_VKX %>% mutate(eiwiteigenlandcategorie = cut(pceigen_n, c(0, 50, 55, 60, 65, 70, 75, 200), labels = c("<50","50-55","55-60","60-65","65-70","70-75", ">75")))
+  
+  
+  
+  data_eiwit_eigen_land_alles_buurt = dataset_VKX %>% 
+    dplyr::select(jaartal, eiwiteigenlandcategoriebuurt) %>%
+    dplyr::group_by(jaartal, eiwiteigenlandcategoriebuurt) %>%
+    dplyr::summarise(n=n()) %>%
+    dplyr::mutate(freq = round(100 * n/ sum(n),0)) %>%
+    dplyr::mutate(jaartal = as.factor(jaartal))
+  
+  data_eiwit_eigen_land_alles = dataset_VKX %>% 
+    dplyr::select(jaartal, eiwiteigenlandcategorie) %>%
+    dplyr::group_by(jaartal, eiwiteigenlandcategorie) %>%
+    dplyr::summarise(n=n()) %>%
+    dplyr::mutate(freq = round(100 * n/ sum(n),0)) %>%
+    dplyr::mutate(jaartal = as.factor(jaartal))
+  
+  data_eiwit_eigen_land_2020 = dataset_VKX %>% 
+    dplyr::filter(jaartal>2019) %>%
+    dplyr::select(jaartal, eiwiteigenlandcategoriebuurt) %>%
+    dplyr::group_by(jaartal, eiwiteigenlandcategoriebuurt) %>%
+    dplyr::summarise(n=n()) %>%
+    dplyr::mutate(freq = round(100 * n/ sum(n),0)) %>%
+    dplyr::mutate(jaartal = as.factor(jaartal))
+  
+  data_eiwit_eigen_land_avg = dataset_VKX %>% 
+    dplyr::filter(jaartal > 2017) %>%
+    dplyr::select(jaartal, pceigen_n_buurt, Lidmaatschapsnummer) %>%
+    dplyr::group_by(Lidmaatschapsnummer) %>%
+    dplyr::summarise(pceigen_n_buurt_mean = mean(pceigen_n_buurt, na.rm = T)) %>%
+    dplyr::mutate(jaartal = "2018-2020") %>%
+    dplyr::mutate(eiwiteigenlandcategoriebuurt = cut(pceigen_n_buurt_mean, c(0, 45, 50, 55, 60, 65, 70, 75, 80, 200), labels = c("<45","45-50","50-55","55-60","60-65","65-70","70-75", "75-80", ">80"))) %>%
+    dplyr::group_by(jaartal, eiwiteigenlandcategoriebuurt) %>%
+    dplyr::summarise(n=n()) %>%
+    dplyr::mutate(freq = round(100 * n/ sum(n),0)) %>%
+    dplyr::mutate(jaartal = as.factor(jaartal))
+  
+  
+  data_eiwit_eigen_land = rbind(data_eiwit_eigen_land_2020, data_eiwit_eigen_land_avg)
+  
+  plot = ggplot(data = data_eiwit_eigen_land_alles_buurt, aes(x = eiwiteigenlandcategoriebuurt, y = freq, fill = as.factor(jaartal))) +
+    geom_bar(stat="identity", position = position_dodge(0.8), width = 0.75) +
+    scale_y_continuous(limits=c(0,40), expand = c(0,0)) +
+    xlab("Eiwit eigen land + buurtaankoop [%]") +
+    ylab("Aandeel bedrijven [%]") +
+    theme(text = element_text(size=8)) +
+    theme_light() +
+    theme(panel.grid.major.x = element_blank()) +
+    theme(legend.key.size = unit(1,"line")) +
+    guides(fill=guide_legend(title = "Periode"))  +
+    scale_fill_manual(values=c(kleur_vka_geel,kleur_vka_groen, kleur_vka_rood, kleur_vka_oranje)) +
+    theme(legend.position = "top")
+  print(plot)
+  ggsave("eiwit_van_eigen_land_buurt.png", width = 20, height = 12, units = "cm")
+  
+  plot = ggplot(data = data_eiwit_eigen_land_alles, aes(x = eiwiteigenlandcategorie, y = freq, fill = as.factor(jaartal))) +
+    geom_bar(stat="identity", position = position_dodge(0.8), width = 0.75) +
+    scale_y_continuous(limits=c(0,60), expand = c(0,0)) +
+    xlab("Eiwit eigen land [%]") +
+    ylab("Aandeel bedrijven [%]") +
+    theme(text = element_text(size=8)) +
+    theme_light() +
+    theme(panel.grid.major.x = element_blank()) +
+    theme(legend.key.size = unit(1,"line")) +
+    guides(fill=guide_legend(title = "Periode"))  +
+    scale_fill_manual(values=c(kleur_vka_geel,kleur_vka_groen, kleur_vka_rood, kleur_vka_oranje)) +
+    theme(legend.position = "top")
+  print(plot)
+  ggsave("eiwit_van_eigen_land.png", width = 20, height = 12, units = "cm")
   
   #### RANTSOEN ####
   parameters_rantsoen_aandeel = matrix(ncol = 3, byrow = T,  data = c(
@@ -985,25 +1101,52 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   
   #PLOT VOOR ZAND
-  data = avg_per_landgebruik %>% select(columnNames[c("jaartal", "bodem_type", "fosfaatnorm_haspecifiek3", "gebrnorm2_ha", "kring2_bodaan"),2]) %>% 
-    filter(bodem_type == "zand") %>%
-    filter(jaartal > 2014)
+  data_BEP_plot_zand = dataset_VKX %>% select(c("jaartal_factor", "jaartal", "grondsoort", "fosfaatnorm_haspecifiek3", "gebrnorm2_ha", "kring2_bodaan", "kring2_bodafv")) %>% 
+    filter(grondsoort == "zand") %>%
+    filter(jaartal > 2014) %>%
+    select(!jaartal) %>%
+    group_by(jaartal_factor) %>%
+    dplyr::summarise_all(mean, na.rm = T)
   
-  data = pivot_longer(data, cols = columnNames[c("fosfaatnorm_haspecifiek3", "gebrnorm2_ha", "kring2_bodaan"),1] )
-  data$name = columnNames[data$name,2]
+  data_BEP_plot_zand_long = pivot_longer(data_BEP_plot_zand, cols = c("fosfaatnorm_haspecifiek3", "gebrnorm2_ha", "kring2_bodaan", "kring2_bodafv") )
   
-  plot = ggplot() +
-    geom_bar(data = data, aes(x= jaartal, y = value, fill = name), stat = "identity", position = "dodge")+
-    scale_x_continuous(breaks = 2015:2019, minor_breaks =  NULL) +
-    coord_cartesian(ylim = c(60,100), xlim = c(2014+0.5,2020-0.5), expand = FALSE) +
-    xlab(columnNames["jaartal",2]) +
+
+  plot = ggplot(data = data_BEP_plot_zand_long, aes(x= jaartal_factor, y = value, fill = name)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.6)+
+    coord_cartesian(ylim = c(0, 100), expand = F) +
+    xlab("Jaartal") +
     ylab("Fosfaat [kg / ha]") +
-    theme_light() +
+    theme_bw() +
     theme(legend.position="top") +
-    scale_fill_discrete(name = "")
+    scale_fill_manual(values = c(kleur_vka_geel, kleur_vka_groen, kleur_vka_rood, kleur_vka_oranje), labels = c("BEP", "Gebruiksnorm", "Bemesting", "Onttrekking")) +
+    theme(legend.title=element_blank())
   
   print(plot)
-  ggsave("Fosfaatnorm_fosfaatbemesting_zand.png", width = 16, height = 8, units = "cm")
+  ggsave("Fosfaatnorm_fosfaatbemesting_zand.png", width = 20, height = 12, units = "cm")
+  
+  #PLOT VOOR KLEI
+  data_BEP_plot_zand = dataset_VKX %>% select(c("jaartal_factor", "jaartal", "grondsoort", "fosfaatnorm_haspecifiek3", "gebrnorm2_ha", "kring2_bodaan", "kring2_bodafv")) %>% 
+    filter(grondsoort == "klei") %>%
+    filter(jaartal > 2014) %>%
+    select(!jaartal) %>%
+    group_by(jaartal_factor) %>%
+    dplyr::summarise_all(mean, na.rm = T)
+  
+  data_BEP_plot_klei_long = pivot_longer(data_BEP_plot_zand, cols = c("fosfaatnorm_haspecifiek3", "gebrnorm2_ha", "kring2_bodaan", "kring2_bodafv") )
+  
+  
+  plot = ggplot(data = data_BEP_plot_klei_long, aes(x= jaartal_factor, y = value, fill = name)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.6)+
+    coord_cartesian(ylim = c(0, 100), expand = F) +
+    xlab("Jaartal") +
+    ylab("Fosfaat [kg / ha]") +
+    theme_bw() +
+    theme(legend.position="top") +
+    scale_fill_manual(values = c(kleur_vka_geel, kleur_vka_groen, kleur_vka_rood, kleur_vka_oranje), labels = c("BEP", "Gebruiksnorm", "Bemesting", "Onttrekking")) +
+    theme(legend.title=element_blank())
+  
+  print(plot)
+  ggsave("Fosfaatnorm_fosfaatbemesting_klei.png", width = 20, height = 12, units = "cm")
   
   
   #### BROEIKASGASSEN ####
@@ -2323,7 +2466,7 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   #-----------------------------ON THE WAY TO PLANET PROOF----------------------------
   
-  data = datasetRaw %>% filter(jaartal == 2019) %>% summarise(BeweidingBasis = length(PP_beweiding[PP_beweiding == 1]) / length(PP_beweiding),
+  data = dataset_VKX %>% filter(jaartal == 2020) %>% dplyr::summarise(BeweidingBasis = length(PP_beweiding[PP_beweiding == 1]) / length(PP_beweiding),
                                                               BeweidingNiet = length(PP_beweiding[PP_beweiding == 0]) / length(PP_beweiding),
                                                               EiwitBasis = length(PP_eiwit_van_eigen_land[PP_eiwit_van_eigen_land == 1]) / length(PP_eiwit_van_eigen_land),
                                                               EiwitTop = length(PP_eiwit_van_eigen_land[PP_eiwit_van_eigen_land == 2]) / length(PP_eiwit_van_eigen_land),
@@ -2357,8 +2500,8 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   dataLong$PP_klasse = ifelse(grepl("Niet", dataLong$name), "Voldoet Niet", dataLong$PP_klasse)
   
   
-  plot = ggplot(data = dataLong, aes(x = PP_categorie, y = 100*value, label = round(100*value,0), fill = factor(PP_klasse, levels = c("Voldoet Niet","Voldoet Topniveau","Voldoet Basisnorm")))) +
-    geom_bar(position = "stack", stat = "identity", width = 0.5) +
+  plot = ggplot(data = dataLong, aes(x = PP_categorie, y = 100*value, label = round(100*value,1), fill = factor(PP_klasse, levels = c("Voldoet Niet","Voldoet Topniveau","Voldoet Basisnorm")))) +
+    geom_bar(position = "stack", stat = "identity", width = 0.5, alpha = 0.8) +
     ylab("Aandeel bedrijven [%]") +
     labs(fill = "H")+
     #scale_x_continuous(breaks = min(data$jaartal):max(data$jaartal), minor_breaks =  NULL) +
@@ -2367,7 +2510,9 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
     theme(legend.position="top") +
     theme(legend.title = element_blank()) +
     theme(text = element_text(size=8)) +
-    geom_text(size = 3, position = position_stack(vjust = 0.5))
+    geom_text(size = 3, position = position_stack(vjust = 0.5)) +
+    scale_fill_manual(values = c(kleur_vka_groen, kleur_vka_oranje, kleur_vka_rood))
+    
   
   
   print(plot)
@@ -2404,6 +2549,6 @@ opzettenRapportageVKX <- function(path_to_dataset, output_path){
   
   print(plot)
   ggsave("Excretie_per_bedrijf.png", width = 16, height = 8, units = "cm")
-  +
+  
   
 }
