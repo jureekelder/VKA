@@ -33,7 +33,7 @@ XMLtoDataFrame <- function(path_xml_files){
     xml_file = as_list(read_xml(file))
     
     #Verkrijgen algemene informatie van bestand: kvk_nummer en jaartal
-    xml_df_algemeen = as.data.frame(tibble::as_tibble(xml_file) %>% tidyr::unnest_longer(KW007_Input) %>% dplyr::filter(KW007_Input_id == "ALGEMEEN") %>% tidyr::unnest_wider(KW007_Input) %>% tidyr::unnest( cols = names(.))) %>% tidyr::unnest(cols = names(.))
+    xml_df_algemeen = as.data.frame(tibble::as_tibble(xml_file) %>% tidyr::unnest_longer(KW008_Input) %>% dplyr::filter(KW008_Input_id == "ALGEMEEN") %>% tidyr::unnest_wider(KW008_Input) %>% tidyr::unnest( cols = names(.))) %>% tidyr::unnest(cols = names(.))
     jaartal = pull(xml_df_algemeen %>% dplyr::select(jaartal))
     kvk_nummer = pull(xml_df_algemeen %>% dplyr::select(kvk_nummer))
     
@@ -44,7 +44,7 @@ XMLtoDataFrame <- function(path_xml_files){
     nested_xmls = c("VRDAANLEG", "VRDBEGIN", "VRDEIND")
     for(nest in nested_xmls){
       
-      xml_df_vrd = tibble::as_tibble(xml_file) %>% tidyr::unnest_longer(KW007_Input) %>% dplyr::filter(KW007_Input_id == nest) %>% tidyr::unnest_wider(KW007_Input)
+      xml_df_vrd = tibble::as_tibble(xml_file) %>% tidyr::unnest_longer(KW008_Input) %>% dplyr::filter(KW008_Input_id == nest) %>% tidyr::unnest_wider(KW008_Input)
       
       krachtvoer_running = NULL
       krachtvoer_found = FALSE
@@ -141,7 +141,7 @@ XMLtoDataFrame <- function(path_xml_files){
 
 
 if(FALSE){
-  path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKA_2020/Voerwinst/InputXMLtest"
+  path_xml_files = "C:/Users/JurEekelder/Documents/analyseKLW_VKA_VKO/Rapportage_VKO_2020/Voerwinst/InputXMLtest"
   data_xml_test = XMLtoDataFrame(path_xml_files) 
 }
 
